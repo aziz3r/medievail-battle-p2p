@@ -1,0 +1,1581 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Snapshot - Temps 40.2s</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; padding: 20px; }
+        h1 { color: #00d9ff; border-bottom: 2px solid #00d9ff; }
+        h2 { cursor: pointer; padding: 10px; margin: 0; }
+        h2:hover { background: #333; }
+        .team-a { background: #0a3d62; }
+        .team-b { background: #78281F; }
+        .section { margin-bottom: 20px; border-radius: 8px; overflow: hidden; }
+        .content { padding: 10px; background: #16213e; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #333; }
+        th { background: #0f3460; }
+        .hp-bar { width: 100px; height: 10px; background: #333; border-radius: 5px; overflow: hidden; }
+        .hp-fill { height: 100%; background: linear-gradient(90deg, #00ff88, #00cc66); }
+        .intent { font-style: italic; color: #aaa; }
+        .ai-state { background: #2d3436; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .collapsed .content { display: none; }
+    </style>
+    <script>
+        function toggle(id) {
+            document.getElementById(id).classList.toggle('collapsed');
+        }
+    </script>
+</head>
+<body>
+    <h1>⚔️ Snapshot de Bataille - Temps: 40.2s</h1>
+    <p>Unités en vie: 107 | 
+       Équipe A: 17 | 
+       Équipe B: 90</p>
+    
+    <div class="ai-state">
+        <h3>🤖 État des Généraux (IA)</h3>
+        <table>
+            <tr><th>Équipe</th><th>Type IA</th><th>Intervalle décision</th></tr>
+<tr><td style="color:#00d9ff">Équipe A</td><td>MajorDaft</td><td>0.3s</td></tr><tr><td style="color:#ff6b6b">Équipe B</td><td>MajorDaft</td><td>0.3s</td></tr>
+        </table>
+    </div>
+
+    <div id="section-A" class="section">
+        <h2 class="team-a" onclick="toggle('section-A')">
+            📋 Équipe A (Bleu) - 17 unités (cliquer pour replier)
+        </h2>
+        <div class="content">
+            <table>
+                <tr>
+                    <th>Type</th>
+                    <th>HP</th>
+                    <th>Position</th>
+                    <th>Vitesse</th>
+                    <th>Cooldown</th>
+                    <th>Intent (Ordre actuel)</th>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.6, 58.0)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.6, 58.0)</td>
+                    <td>1.6</td>
+                    <td>1.8s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.4, 58.0)</td>
+                    <td>1.6</td>
+                    <td>1.5s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.5, 58.0)</td>
+                    <td>1.6</td>
+                    <td>0.3s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.6, 58.0)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:94.0%"></div>
+                        </div>
+                        94
+                    </td>
+                    <td>(59.6, 58.0)</td>
+                    <td>1.6</td>
+                    <td>0.3s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:52.0%"></div>
+                        </div>
+                        52
+                    </td>
+                    <td>(59.7, 58.0)</td>
+                    <td>1.6</td>
+                    <td>0.3s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.6, 60.0)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.6, 60.0)</td>
+                    <td>1.6</td>
+                    <td>1.8s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.4, 60.0)</td>
+                    <td>1.6</td>
+                    <td>1.5s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.5, 60.0)</td>
+                    <td>1.6</td>
+                    <td>0.3s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.6, 60.0)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:94.0%"></div>
+                        </div>
+                        94
+                    </td>
+                    <td>(59.6, 60.0)</td>
+                    <td>1.6</td>
+                    <td>0.3s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:52.0%"></div>
+                        </div>
+                        52
+                    </td>
+                    <td>(59.7, 60.0)</td>
+                    <td>1.6</td>
+                    <td>0.3s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.6, 62.0)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:100)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:57.99999999999999%"></div>
+                        </div>
+                        58
+                    </td>
+                    <td>(59.6, 62.0)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:100)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:70.0%"></div>
+                        </div>
+                        70
+                    </td>
+                    <td>(59.6, 62.0)</td>
+                    <td>1.6</td>
+                    <td>1.8s</td>
+                    <td class="intent">Attaque Knight (HP:76)</td>
+                </tr>
+
+            </table>
+        </div>
+    </div>
+
+    <div id="section-B" class="section">
+        <h2 class="team-b" onclick="toggle('section-B')">
+            📋 Équipe B (Rouge) - 90 unités (cliquer pour replier)
+        </h2>
+        <div class="content">
+            <table>
+                <tr>
+                    <th>Type</th>
+                    <th>HP</th>
+                    <th>Position</th>
+                    <th>Vitesse</th>
+                    <th>Cooldown</th>
+                    <th>Intent (Ordre actuel)</th>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(60.4, 58.0)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(60.4, 58.0)</td>
+                    <td>1.6</td>
+                    <td>1.8s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:52.0%"></div>
+                        </div>
+                        52
+                    </td>
+                    <td>(60.3, 58.0)</td>
+                    <td>1.6</td>
+                    <td>0.3s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(60.6, 58.0)</td>
+                    <td>1.6</td>
+                    <td>1.5s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(60.5, 58.0)</td>
+                    <td>1.6</td>
+                    <td>0.3s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(60.4, 58.0)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:94.0%"></div>
+                        </div>
+                        94
+                    </td>
+                    <td>(60.4, 58.0)</td>
+                    <td>1.6</td>
+                    <td>1.8s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(60.4, 60.0)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(60.4, 60.0)</td>
+                    <td>1.6</td>
+                    <td>1.8s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:52.0%"></div>
+                        </div>
+                        52
+                    </td>
+                    <td>(60.3, 60.0)</td>
+                    <td>1.6</td>
+                    <td>0.3s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(60.6, 60.0)</td>
+                    <td>1.6</td>
+                    <td>1.5s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(60.5, 60.0)</td>
+                    <td>1.6</td>
+                    <td>0.3s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(60.4, 60.0)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:94.0%"></div>
+                        </div>
+                        94
+                    </td>
+                    <td>(60.4, 60.0)</td>
+                    <td>1.6</td>
+                    <td>1.8s</td>
+                    <td class="intent">Attaque Knight (HP:52)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(60.4, 62.0)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(60.4, 62.0)</td>
+                    <td>1.6</td>
+                    <td>1.8s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(60.3, 62.0)</td>
+                    <td>1.6</td>
+                    <td>0.3s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(60.6, 62.0)</td>
+                    <td>1.6</td>
+                    <td>1.5s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(60.5, 62.0)</td>
+                    <td>1.6</td>
+                    <td>0.3s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(60.4, 62.0)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:94.0%"></div>
+                        </div>
+                        94
+                    </td>
+                    <td>(60.4, 62.0)</td>
+                    <td>1.6</td>
+                    <td>1.8s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.8, 62.6)</td>
+                    <td>1.6</td>
+                    <td>1.8s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.8, 62.6)</td>
+                    <td>1.6</td>
+                    <td>0.3s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.7, 62.6)</td>
+                    <td>1.6</td>
+                    <td>0.6s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.9, 62.6)</td>
+                    <td>1.6</td>
+                    <td>1.8s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:82.0%"></div>
+                        </div>
+                        82
+                    </td>
+                    <td>(59.8, 62.6)</td>
+                    <td>1.6</td>
+                    <td>0.3s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.8, 62.6)</td>
+                    <td>1.6</td>
+                    <td>0.3s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.8, 62.6)</td>
+                    <td>1.6</td>
+                    <td>0.3s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.8, 62.6)</td>
+                    <td>1.6</td>
+                    <td>0.3s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:76.0%"></div>
+                        </div>
+                        76
+                    </td>
+                    <td>(59.7, 62.6)</td>
+                    <td>1.6</td>
+                    <td>0.3s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.8, 62.7)</td>
+                    <td>1.6</td>
+                    <td>0.3s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.8, 62.7)</td>
+                    <td>1.6</td>
+                    <td>0.3s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.8, 62.7)</td>
+                    <td>1.6</td>
+                    <td>0.6s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:88.0%"></div>
+                        </div>
+                        88
+                    </td>
+                    <td>(59.8, 62.7)</td>
+                    <td>1.6</td>
+                    <td>0.3s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.8, 62.8)</td>
+                    <td>1.6</td>
+                    <td>0.3s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.4, 62.6)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.4, 62.5)</td>
+                    <td>1.6</td>
+                    <td>0.9s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:94.0%"></div>
+                        </div>
+                        94
+                    </td>
+                    <td>(59.3, 62.7)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:94.0%"></div>
+                        </div>
+                        94
+                    </td>
+                    <td>(59.4, 62.7)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:70.0%"></div>
+                        </div>
+                        70
+                    </td>
+                    <td>(59.4, 62.8)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.7, 62.6)</td>
+                    <td>1.6</td>
+                    <td>0.3s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.9, 62.7)</td>
+                    <td>1.6</td>
+                    <td>0.3s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.9, 62.7)</td>
+                    <td>1.6</td>
+                    <td>0.6s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:64.0%"></div>
+                        </div>
+                        64
+                    </td>
+                    <td>(59.9, 62.8)</td>
+                    <td>1.6</td>
+                    <td>0.6s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:94.0%"></div>
+                        </div>
+                        94
+                    </td>
+                    <td>(59.4, 62.8)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:82.0%"></div>
+                        </div>
+                        82
+                    </td>
+                    <td>(59.4, 62.8)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:94.0%"></div>
+                        </div>
+                        94
+                    </td>
+                    <td>(59.4, 62.6)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:82.0%"></div>
+                        </div>
+                        82
+                    </td>
+                    <td>(59.3, 62.5)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.4, 62.7)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:88.0%"></div>
+                        </div>
+                        88
+                    </td>
+                    <td>(59.4, 62.8)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.8, 62.7)</td>
+                    <td>1.6</td>
+                    <td>0.6s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.8, 62.7)</td>
+                    <td>1.6</td>
+                    <td>0.6s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:88.0%"></div>
+                        </div>
+                        88
+                    </td>
+                    <td>(59.8, 62.7)</td>
+                    <td>1.6</td>
+                    <td>0.6s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.8, 62.7)</td>
+                    <td>1.6</td>
+                    <td>0.6s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.4, 62.8)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:76.0%"></div>
+                        </div>
+                        76
+                    </td>
+                    <td>(59.4, 62.8)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.4, 62.8)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.4, 62.8)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.4, 62.6)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:94.0%"></div>
+                        </div>
+                        94
+                    </td>
+                    <td>(59.3, 62.7)</td>
+                    <td>1.6</td>
+                    <td>1.2s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.7, 62.7)</td>
+                    <td>1.6</td>
+                    <td>0.6s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.9, 62.8)</td>
+                    <td>1.6</td>
+                    <td>0.6s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.9, 62.8)</td>
+                    <td>1.6</td>
+                    <td>0.6s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.3, 62.8)</td>
+                    <td>1.6</td>
+                    <td>1.5s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.4, 62.7)</td>
+                    <td>1.6</td>
+                    <td>1.5s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.4, 62.6)</td>
+                    <td>1.6</td>
+                    <td>1.5s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.3, 62.6)</td>
+                    <td>1.6</td>
+                    <td>1.5s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.3, 62.6)</td>
+                    <td>1.6</td>
+                    <td>1.5s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.3, 62.6)</td>
+                    <td>1.6</td>
+                    <td>1.5s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:94.0%"></div>
+                        </div>
+                        94
+                    </td>
+                    <td>(59.3, 62.6)</td>
+                    <td>1.6</td>
+                    <td>1.5s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.9, 62.8)</td>
+                    <td>1.6</td>
+                    <td>0.6s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.9, 62.8)</td>
+                    <td>1.6</td>
+                    <td>0.6s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.3, 62.6)</td>
+                    <td>1.6</td>
+                    <td>1.5s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.3, 62.6)</td>
+                    <td>1.6</td>
+                    <td>1.5s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.3, 62.6)</td>
+                    <td>1.6</td>
+                    <td>1.5s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.4, 62.8)</td>
+                    <td>1.6</td>
+                    <td>1.5s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:88.0%"></div>
+                        </div>
+                        88
+                    </td>
+                    <td>(59.4, 62.8)</td>
+                    <td>1.6</td>
+                    <td>1.5s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.4, 62.8)</td>
+                    <td>1.6</td>
+                    <td>1.5s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.3, 62.7)</td>
+                    <td>1.6</td>
+                    <td>1.5s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:82.0%"></div>
+                        </div>
+                        82
+                    </td>
+                    <td>(59.3, 62.6)</td>
+                    <td>1.6</td>
+                    <td>1.5s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.8, 62.8)</td>
+                    <td>1.6</td>
+                    <td>0.6s</td>
+                    <td class="intent">Attaque Knight (HP:70)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:94.0%"></div>
+                        </div>
+                        94
+                    </td>
+                    <td>(59.3, 62.8)</td>
+                    <td>1.6</td>
+                    <td>1.5s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.3, 62.8)</td>
+                    <td>1.6</td>
+                    <td>1.5s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.4, 62.9)</td>
+                    <td>1.6</td>
+                    <td>1.8s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.4, 62.9)</td>
+                    <td>1.6</td>
+                    <td>1.8s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.4, 62.9)</td>
+                    <td>1.6</td>
+                    <td>1.8s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.4, 62.8)</td>
+                    <td>1.6</td>
+                    <td>1.8s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.3, 62.7)</td>
+                    <td>1.6</td>
+                    <td>1.8s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:100%"></div>
+                        </div>
+                        100
+                    </td>
+                    <td>(59.3, 62.6)</td>
+                    <td>1.6</td>
+                    <td>1.8s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+                <tr>
+                    <td><strong>Knight</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <div class="hp-fill" style="width:94.0%"></div>
+                        </div>
+                        94
+                    </td>
+                    <td>(59.4, 62.7)</td>
+                    <td>1.6</td>
+                    <td>1.8s</td>
+                    <td class="intent">Attaque Knight (HP:58)</td>
+                </tr>
+
+            </table>
+        </div>
+    </div>
+
+</body>
+</html>
