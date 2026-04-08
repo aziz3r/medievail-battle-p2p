@@ -1,6 +1,7 @@
 # guerrier.py
 from abc import ABC, abstractmethod
 from typing import Tuple
+import uuid
 
 class Guerrier(ABC):
     def __init__(self, *, hp, attaque, armor, pierceArmor, range, lineOfSight,
@@ -24,9 +25,43 @@ class Guerrier(ABC):
         self.x = float(x)
         self.y = float(y)
 
+        # --- Identifiants pour le réseau ---
+        team = kwargs.get('team', None)
+        # uid : combinaison type d'unité + UUID unique pour ce processus
+        self.uid = f"{type(self).__name__}_{id(self)}_{uuid.uuid4().hex[:8]}"
+        # proprietaire_reseau : par défaut l'équipe de l'unité
+        self.proprietaire_reseau = team
+
         # stocke aussi tout ce que tu passes en plus (baseMelee, mountedUnits, etc.)
         for k, v in kwargs.items():
             setattr(self, k, v)
+
+    # --- Sérialisation réseau ---
+
+    def to_dict(self) -> dict:
+        """Retourne un dictionnaire JSON-sérialisable pour la synchronisation réseau."""
+        return {
+            "uid": self.uid,
+            "proprietaire_reseau": self.proprietaire_reseau,
+            "type": type(self).__name__,
+            "hp": self.hp,
+            "x": self.x,
+            "y": self.y,
+            "intent": self.intent if isinstance(self.intent, (str, type(None))) else str(self.intent),
+        }
+
+    def update_from_dict(self, data: dict):
+        """Met à jour les attributs réseau depuis un dictionnaire reçu."""
+        if "hp" in data:
+            self.hp = float(data["hp"])
+        if "x" in data:
+            self.x = float(data["x"])
+        if "y" in data:
+            self.y = float(data["y"])
+        if "intent" in data:
+            self.intent = data["intent"]
+        if "proprietaire_reseau" in data:
+            self.proprietaire_reseau = data["proprietaire_reseau"]
 
     # --- État de vie ---
 
