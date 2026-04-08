@@ -1,4 +1,3 @@
-import pygame
 import sys
 
 # --- IMPORTS ---
@@ -15,26 +14,16 @@ TEAM_INFO = {
 }
 
 def main():
-    # 1. SETUP DU JEU
+    # 1. SETUP LOGIQUE DU JEU (MODEL)
     print("Initialisation de la bataille...")
     game = scenario_simple_vs_braindead()
 
-    pygame.init()
-    
-    # Dimensions de départ
-    START_W = 1024
-    START_H = 768
-    
-    # --- IMPORTANT : On active le redimensionnement ici ---
-    screen = pygame.display.set_mode((START_W, START_H), pygame.RESIZABLE)
-    
-    pygame.display.set_caption("Simulation : Age of Python")
-    clock = pygame.time.Clock()
-
-    # On passe les dimensions initiales à la GUI
+    # 2. SETUP DE LA VUE 
+    START_W, START_H = 1024, 768
     view = GUI(game, START_W, START_H)
+    view.init_window(title="Simulation Age of Python")
     
-    # Options de simulation
+    # Séparateurs logiques
     auto_play = False
     game_over_processed = False 
 
@@ -44,49 +33,44 @@ def main():
     print("[Molette]         : Zoomer / Dézoomer (centré sur souris)")
     print("[Clic/Clic Droit] : Maintenir pour déplacer la caméra")
     print("[M]               : Afficher/Cacher la minimap")
-    print("[Flèches]         : Déplacer la caméra au clavier")
     print("[F11/F12]         : Sauvegarde/Chargement rapide")
     print("-----------------\n")
 
     running = True
     while running:
-        # --- BOUCLE D'ÉVÉNEMENTS ---
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
+        # --- BOUCLE D'ÉVÉNEMENTS (RÉCUPÉRÉS DEPUIS LA VUE) ---
+        events = view.pump_events()
+        for event_dict in events:
+            if event_dict["type"] == "QUIT":
                 running = False
             
-            # --- C'EST ICI QUE LA MAGIE OPÈRE ---
-            # On envoie l'événement (clic, molette, resize) à la vue pour qu'elle le traite
-            view.handle_events(event)
-            
-            # Gestion des touches globales (Pause, Pas à pas)
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_p:
+            if event_dict["type"] == "KEYDOWN":
+                key_name = event_dict["key"]
+                if key_name == "p":
                     if not game.is_finished():
                         auto_play = not auto_play
-                        state = "LECTURE" if auto_play else "PAUSE"
-                        print(f"État : {state}")
+                        print(f"État : {'LECTURE' if auto_play else 'PAUSE'}")
                 
-                if event.key == pygame.K_SPACE:
+                elif key_name == "space":
                     if not game.is_finished():
                         game.step(dt=0.1)
                         print(f"Tour joué. Temps: {game.time:.1f}")
 
-                if event.key == pygame.K_F9:
+                elif key_name == "f9":
                     print("Basculement vers la vue Terminal...")
-                    pygame.quit()
+                    view.close_window()
                     from view.terminal_view import TerminalView
-                    view = TerminalView(game)
-                    view.start()
+                    term_view = TerminalView(game)
+                    term_view.start()
                     sys.exit()
 
         # --- LOGIQUE DE JEU (MODEL) ---
+        # Remarque: Dans la version P2P finale, ceci tournera dans un thread sépare ou 
+        # sera tické par la réception des paquets réseaux au lieu de la vue.
         if not game.is_finished():
             if auto_play:
                 game.step(dt=0.02)
-        
         else:
-            # Fin de partie (Console)
             if not game_over_processed:
                 print("\n" + "="*30)
                 print("   LA BATAILLE EST TERMINÉE !")
@@ -104,18 +88,11 @@ def main():
                 game_over_processed = True
 
         # --- AFFICHAGE (VIEW) ---
+        view.render_frame()
         
-        # 1. Gestion des touches maintenues (Flèches directionnelles)
-        view.handle_input() 
-        
-        # 2. Dessin de la scène
-        view.draw(screen)
-        
-        # 3. Overlay de Fin de partie (Centré dynamiquement)
+        # Overlay de Fin de partie
         if game.is_finished():
             winner = game.get_winner()
-            font = pygame.font.SysFont("Arial", 40, bold=True)
-            
             lines = []
             if winner is None:
                 lines.append(("MATCH NUL", (255, 255, 255)))
@@ -124,26 +101,11 @@ def main():
                 lines.append((f"VICTOIRE : {info.get('name', winner)}", (255, 215, 0)))
                 lines.append((f"Général : {info.get('ia', '?')}", (200, 200, 200)))
 
-            # Centrage basé sur la largeur actuelle de la fenêtre (view.screen_w)
-            center_x = view.screen_w // 2 
-            start_y = 100 
-            
-            for i, (txt, color) in enumerate(lines):
-                surf = font.render(txt, True, color)
-                rect = surf.get_rect(center=(center_x, start_y + i * 50))
-                
-                # Fond semi-transparent
-                bg = pygame.Surface((rect.width + 20, rect.height + 10))
-                bg.set_alpha(180)
-                bg.fill((0, 0, 0))
-                screen.blit(bg, bg.get_rect(center=rect.center))
-                
-                screen.blit(surf, rect)
+            view.draw_victory_overlay(lines)
 
-        pygame.display.flip()
-        clock.tick(60)
+        view.tick(60)
 
-    pygame.quit()
+    view.close_window()
     sys.exit()
 
 if __name__ == "__main__":

@@ -87,33 +87,29 @@ def run_battle(scenario_name, ai1_name, ai2_name, terminal_mode=False, datafile=
         view = TerminalView(base_game)
         view.start()
     else:
-        # Mode GUI (pygame)
-        import pygame
+        # Mode GUI (agnostique)
         from view.views import GUI
 
-        pygame.init()
-        screen = pygame.display.set_mode((1024, 768), pygame.RESIZABLE)
-        pygame.display.set_caption(f"Battle: {ai1_name} vs {ai2_name}")
-        clock = pygame.time.Clock()
         gui = GUI(base_game, 1024, 768)
+        gui.init_window(title=f"Battle: {ai1_name} vs {ai2_name}")
 
         auto_play = True
         running = True
 
         while running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
+            events = gui.pump_events()
+            for event in events:
+                if event["type"] == "QUIT":
                     running = False
-                gui.handle_events(event)
-
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_p:
+                elif event["type"] == "KEYDOWN":
+                    key_name = event["key"]
+                    if key_name == "p":
                         auto_play = not auto_play
-                    if event.key == pygame.K_SPACE:
+                    elif key_name == "space":
                         base_game.step(dt=0.1)
-                    if event.key == pygame.K_F9:
+                    elif key_name == "f9":
                         # Switch to terminal mode
-                        pygame.quit()
+                        gui.close_window()
                         from view.terminal_view import TerminalView
                         view = TerminalView(base_game)
                         view.start()
@@ -122,17 +118,15 @@ def run_battle(scenario_name, ai1_name, ai2_name, terminal_mode=False, datafile=
             if not base_game.is_finished() and auto_play:
                 base_game.step(dt=0.05)
 
-            gui.handle_input()
-            gui.draw(screen)
-            pygame.display.flip()
-            clock.tick(30)
+            gui.render_frame()
+            gui.tick(30)
 
             if base_game.is_finished():
-                # Attendre un peu avant de quitter
-                pygame.time.wait(2000)
+                import time
+                time.sleep(2)  # Pause grossière de fin de partie
                 running = False
 
-        pygame.quit()
+        gui.close_window()
 
     # 4. Écriture des données si demandé
     if datafile:
@@ -163,36 +157,30 @@ def load_game(savefile):
     print(f"Temps simulé : {game.time:.1f}s, Unités en vie : {len(game.alive_units())}")
 
     # Lancer en mode GUI
-    import pygame
     from view.views import GUI
 
-    pygame.init()
-    screen = pygame.display.set_mode((1024, 768), pygame.RESIZABLE)
-    pygame.display.set_caption("Partie chargée")
-    clock = pygame.time.Clock()
     gui = GUI(game, 1024, 768)
+    gui.init_window(title="Partie chargée")
 
     auto_play = False
     running = True
 
     while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
+        events = gui.pump_events()
+        for event in events:
+            if event["type"] == "QUIT":
                 running = False
-            gui.handle_events(event)
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_p:
+            elif event["type"] == "KEYDOWN":
+                if event["key"] == "p":
                     auto_play = not auto_play
 
         if not game.is_finished() and auto_play:
             game.step(dt=0.1)
 
-        gui.handle_input()
-        gui.draw(screen)
-        pygame.display.flip()
-        clock.tick(30)
+        gui.render_frame()
+        gui.tick(30)
 
-    pygame.quit()
+    gui.close_window()
 
 
 def run_tournament(generals, scenarios, rounds=10, alternate=True):

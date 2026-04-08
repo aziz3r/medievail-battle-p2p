@@ -130,11 +130,13 @@ class GUI:
         
         self.screen_w = screen_width
         self.screen_h = screen_height
+        self.screen = None # Sera initialisé par init_window()
+        self.clock = None
         
         self.camera_x = 0
         self.camera_y = 0
         self.zoom = 1.0
-        self.min_zoom = 0.1 # Allow zooming out much further
+        self.min_zoom = 0.1
         self.max_zoom = 2.0
         
         # Center on map if available
@@ -869,3 +871,62 @@ class GUI:
             world_y = rel_y / scale
             self.camera_x = (self.screen_w // 2) - world_x
             self.camera_y = (self.screen_h // 2) - world_y
+
+    # --- MÉTHODES D'ENCAPSULATION PUBLIQUES POUR LE BOILERPLATE PYGAME ---
+    
+    def init_window(self, title="Simulation Age of Python"):
+        """Initialise la fenêtre Pygame et cache cette mécanique au monde extérieur."""
+        pygame.init()
+        self.screen = pygame.display.set_mode((self.screen_w, self.screen_h), pygame.RESIZABLE)
+        pygame.display.set_caption(title)
+        self.clock = pygame.time.Clock()
+        return self.screen
+
+    def tick(self, fps=60):
+        if self.clock:
+            self.clock.tick(fps)
+
+    def close_window(self):
+        pygame.quit()
+
+    def render_frame(self):
+        """Dessine une frame complète sur la fenêtre interceptée."""
+        if not self.screen: return
+        self.draw(self.screen)
+        pygame.display.flip()
+
+    def draw_victory_overlay(self, lines: list):
+        """
+        Affiche l'écran de fin de partie par dessus l'écran de jeu.
+        `lines` est une liste de tuples (texte, (R,G,B)).
+        """
+        if not self.screen: return
+        font = pygame.font.SysFont("Arial", 40, bold=True)
+        center_x = self.screen_w // 2 
+        start_y = 100 
+        
+        for i, (txt, color) in enumerate(lines):
+            surf = font.render(txt, True, color)
+            rect = surf.get_rect(center=(center_x, start_y + i * 50))
+            bg = pygame.Surface((rect.width + 20, rect.height + 10))
+            bg.set_alpha(180)
+            bg.fill((0, 0, 0))
+            self.screen.blit(bg, bg.get_rect(center=rect.center))
+            self.screen.blit(surf, rect)
+            
+        pygame.display.flip()
+
+    def pump_events(self) -> list:
+        """Récupère les événements pygame et les retourne sous forme de dicts génériques/tuples."""
+        events = []
+        if not self.screen: return events
+        for event in pygame.event.get():
+            self.handle_events(event) # Laisse la GUI gérer sa cam
+            # Expose seulement les actions utiles au lancer
+            if event.type == pygame.QUIT:
+                events.append({"type": "QUIT"})
+            elif event.type == pygame.KEYDOWN:
+                key_name = pygame.key.name(event.key)
+                events.append({"type": "KEYDOWN", "key": key_name})
+        self.handle_input()
+        return events

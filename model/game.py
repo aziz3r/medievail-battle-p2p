@@ -70,6 +70,11 @@ class Game:
     def add_unit(self, unit: Any, team: str, row: int, col: int) -> None:
         """Ajoute une unité à la partie, l'associe à une équipe et la place sur la map."""
         setattr(unit, "team", team)
+        
+        # Par défaut, si l'unité n'a pas de network_owner explicite (P2P), on lui attribue l'équipe
+        if getattr(unit, "network_owner", None) is None:
+            unit.network_owner = team
+            
         self.units.append(unit)
         self.map.place_unit(unit, row, col)
 
@@ -520,3 +525,57 @@ class Game:
             "kills": self.kills,
         }
         return summary
+
+    # ------------------------------------------------------------------
+    # Synchronisation Réseau P2P
+    # ------------------------------------------------------------------
+
+    def get_sync_state(self) -> dict:
+        """Exporte l'état complet de la grille et des unités pour le réseau."""
+        units_data = []
+        for u in self.units:
+            if hasattr(u, "get_sync_data"):
+                units_data.append(u.get_sync_data())
+                
+        return {
+            "time": self.time,
+            "running": self.running,
+            "winner": self.winner,
+            "units": units_data
+        }
+
+    def apply_sync_state(self, data: dict, local_id: str):
+        """
+        Applique un état réseau reçu depuis l'extérieur (P2P).
+        Pour respecter le modèle d'ownership, on n'écrase l'état local d'une unité 
+        que si notre client LOCAL (local_id) n'en est PAS le propriétaire !
+        """
+        if "time" in data: self.time = data["time"]
+        if "running" in data: self.running = data["running"]
+        if "winner" in data: self.winner = data["winner"]
+        
+        if "units" in data:
+            # Créer un dictionnaire rapide par (id unité)
+            unit_by_id = {getattr(u, "id", None): u for u in self.units}
+            units_data = data["units"]
+            
+            # Fonction utilitaire pour résoudre l'ID target -> Object
+            def resolve_target(tid):
+                return unit_by_id.get(tid, None)
+            
+            for udata in units_data:
+                uid = udata.get("id")
+                if not uid: continue
+                
+                local_unit = unit_by_id.get(uid)
+                # Si l'unité existe en local :
+                if local_unit:
+                    owner = getattr(local_unit, "network_owner", None)
+                    # Si c'est nous le proprio, on IGNORE les données réseau pour ne pas rollback nos modifications.
+                    # On ne met à jour que ce dont les autres sont proprios (ou dont on vient d'acquérir la propriété).
+                    if owner != local_id:
+                        if hasattr(local_unit, "update_from_sync"):
+                            local_unit.update_from_sync(udata, resolve_target)
+                
+                # S'il y avait création dynamique d'unités en cours de partie (spawns), 
+                # c'est ici qu'on les instancierait si elles n'existent pas en local.

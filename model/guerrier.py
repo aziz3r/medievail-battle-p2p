@@ -1,10 +1,11 @@
 # guerrier.py
+import uuid
 from abc import ABC, abstractmethod
 from typing import Tuple
 
 class Guerrier(ABC):
     def __init__(self, *, hp, attaque, armor, pierceArmor, range, lineOfSight,
-                 speed, buildTime, reloadTime, cooldown=0, x=0.0, y=0.0, **kwargs):
+                 speed, buildTime, reloadTime, cooldown=0, x=0.0, y=0.0, id=None, network_owner=None, **kwargs):
         # Stats de base
         self.hp = float(hp)
         self.max_hp = float(hp)
@@ -23,6 +24,10 @@ class Guerrier(ABC):
         # Position (simple, utilisable avec la map)
         self.x = float(x)
         self.y = float(y)
+        
+        # Réseau / P2P
+        self.id = id or uuid.uuid4().hex
+        self.network_owner = network_owner
 
         # stocke aussi tout ce que tu passes en plus (baseMelee, mountedUnits, etc.)
         for k, v in kwargs.items():
@@ -123,3 +128,52 @@ class Guerrier(ABC):
         self.apply_damage(target, dmg)
         self.start_cooldown()
         return dmg
+
+    # --- Synchronisation Réseau P2P ---
+
+    def get_sync_data(self) -> dict:
+        """Retourne un état allégé de l'unité pur transport réseau."""
+        intent_data = None
+        if self.intent:
+            intent_kind = self.intent[0]
+            if intent_kind == "move_to":
+                intent_data = ("move_to", self.intent[1], self.intent[2])
+            elif intent_kind == "attack" and self.intent[1]:
+                intent_data = ("attack", getattr(self.intent[1], "id", None))
+
+        return {
+            "id": self.id,
+            "type": self.__class__.__name__,
+            "network_owner": self.network_owner,
+            "hp": self.hp,
+            "x": self.x,
+            "y": self.y,
+            "cooldown": self.cooldown,
+            "intent": intent_data
+        }
+
+    def update_from_sync(self, data: dict, resolve_target_func=None):
+        """
+        Met à jour l'unité à partir de données réseau distantes.
+        `resolve_target_func` est optionnelle, elle sert à retrouver l'objet cible 
+        d'une intention à partir de son ID réseau.
+        """
+        if "hp" in data: self.hp = float(data["hp"])
+        if "x" in data: self.x = float(data["x"])
+        if "y" in data: self.y = float(data["y"])
+        if "cooldown" in data: self.cooldown = float(data["cooldown"])
+        if "network_owner" in data: self.network_owner = data["network_owner"]
+        
+        if "intent" in data:
+            intent_data = data["intent"]
+            if intent_data is None:
+                self.intent = None
+            else:
+                kind = intent_data[0]
+                if kind == "move_to":
+                    self.intent = ("move_to", float(intent_data[1]), float(intent_data[2]))
+                elif kind == "attack":
+                    if resolve_target_func:
+                        target_id = intent_data[1]
+                        target_obj = resolve_target_func(target_id)
+                        self.intent = ("attack", target_obj)
