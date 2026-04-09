@@ -1,4 +1,10 @@
-import curses
+try:
+    import curses
+except ModuleNotFoundError as exc:
+    if exc.name == "_curses":
+        curses = None
+    else:
+        raise
 import time
 import os
 import webbrowser
@@ -49,6 +55,10 @@ class TerminalView:
 
     def start(self):
         """ Point d'entrée principal """
+        if curses is None:
+            raise RuntimeError(
+                "Le module _curses est introuvable. Sous Windows, installez: pip install windows-curses"
+            )
         curses.wrapper(self._main_loop)
 
     def _init_colors(self):

@@ -1,15 +1,18 @@
 # view/__init__.py
 """
-View layer - Presentation and user interface
-Contains GUI, terminal view, and menu
+View layer - Presentation and user interface.
 """
 
 from .views import GUI
-from .terminal_view import TerminalView
 from .menu import MainMenu
 
-__all__ = [
-    'GUI',
-    'TerminalView',
-    'MainMenu',
-]
+try:
+    from .terminal_view import TerminalView
+except ModuleNotFoundError as exc:
+    # Windows can miss the optional curses module.
+    if exc.name == "_curses":
+        TerminalView = None
+    else:
+        raise
+
+__all__ = ["GUI", "TerminalView", "MainMenu"]

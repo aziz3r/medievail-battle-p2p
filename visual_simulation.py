@@ -14,16 +14,22 @@ TEAM_INFO = {
 }
 
 def main():
-    # 1. SETUP LOGIQUE DU JEU (MODEL)
     print("Initialisation de la bataille...")
     game = scenario_simple_vs_braindead()
 
-    # 2. SETUP DE LA VUE 
-    START_W, START_H = 1024, 768
+    pygame.init()
+    
+    START_W = 1024
+    START_H = 768
+    
+    screen = pygame.display.set_mode((START_W, START_H), pygame.RESIZABLE)
+    
+    pygame.display.set_caption("Simulation : Age of Python")
+    clock = pygame.time.Clock()
+
     view = GUI(game, START_W, START_H)
     view.init_window(title="Simulation Age of Python")
     
-    # Séparateurs logiques
     auto_play = False
     game_over_processed = False 
 
@@ -44,9 +50,10 @@ def main():
             if event_dict["type"] == "QUIT":
                 running = False
             
-            if event_dict["type"] == "KEYDOWN":
-                key_name = event_dict["key"]
-                if key_name == "p":
+            view.handle_events(event)
+            
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_p:
                     if not game.is_finished():
                         auto_play = not auto_play
                         print(f"État : {'LECTURE' if auto_play else 'PAUSE'}")
@@ -90,7 +97,10 @@ def main():
         # --- AFFICHAGE (VIEW) ---
         view.render_frame()
         
-        # Overlay de Fin de partie
+        view.handle_input() 
+        
+        view.draw(screen)
+        
         if game.is_finished():
             winner = game.get_winner()
             lines = []
@@ -101,7 +111,19 @@ def main():
                 lines.append((f"VICTOIRE : {info.get('name', winner)}", (255, 215, 0)))
                 lines.append((f"Général : {info.get('ia', '?')}", (200, 200, 200)))
 
-            view.draw_victory_overlay(lines)
+            center_x = view.screen_w // 2 
+            start_y = 100 
+            
+            for i, (txt, color) in enumerate(lines):
+                surf = font.render(txt, True, color)
+                rect = surf.get_rect(center=(center_x, start_y + i * 50))
+                
+                bg = pygame.Surface((rect.width + 20, rect.height + 10))
+                bg.set_alpha(180)
+                bg.fill((0, 0, 0))
+                screen.blit(bg, bg.get_rect(center=rect.center))
+                
+                screen.blit(surf, rect)
 
         view.tick(60)
 
