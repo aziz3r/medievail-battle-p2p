@@ -12,9 +12,11 @@ ATTACK_LOG_FILE = "battle_attacks.txt"
 
 
 class Game:
-    def __init__(self, battle_map: BattleMap, controllers: Dict[str, Any]):
+    def __init__(self, battle_map: BattleMap, controllers: Dict[str, Any], ipc_client: Any = None, local_player_id: str = None):
         self.map: BattleMap = battle_map
         self.controllers: Dict[str, Any] = controllers
+        self.ipc_client = ipc_client
+        self.local_player_id = local_player_id
         self.units: List[Any] = []
         self.time: float = 0.0
         self.running: bool = True
@@ -89,6 +91,19 @@ class Game:
         if not self.running:
             return
 
+        # === DEBUT SYNCHRONISATION P2P (RECEPTION) ===
+        if self.ipc_client is not None:
+            try:
+                # Lecture stricte non-bloquante depuis le deamon C
+                # (On suppose que ipc_client.receive() ou une méthode similaire existe et retourne les data)
+                data = self.ipc_client.receive()
+                if data:
+                    self.apply_sync_state(data, self.local_player_id)
+            except Exception as e:
+                # Robustesse : ignorer silencieusement ou logger si le Daemon est injoignable
+                pass
+        # === FIN SYNCHRONISATION P2P (RECEPTION) ===
+
         all_actions: List[tuple[Any, ...]] = []
         for team, controller in self.controllers.items():
             if not self.alive_units_of_team(team):
@@ -120,6 +135,18 @@ class Game:
 
         self.time += dt
         self.check_victory_conditions()
+
+        # === DEBUT SYNCHRONISATION P2P (DIFFUSION) ===
+        if self.ipc_client is not None and getattr(self, "get_sync_state", None):
+            try:
+                sync_data = self.get_sync_state()
+                if sync_data:
+                    # Envoi au daemon C
+                    self.ipc_client.send(sync_data)
+            except Exception as e:
+                # Robustesse
+                pass
+        # === FIN SYNCHRONISATION P2P (DIFFUSION) ===
 
     def apply_actions(self, actions: Iterable[tuple[Any, ...]], dt: float = 1.0) -> None:
         for action in actions:
@@ -334,6 +361,19 @@ class Game:
 
 
 
+
+    def apply_sync_state(self, data: Any, local_id: str) -> None:
+        """
+        Met à jour l'état du jeu selon les données reçues, notamment
+        les unités dont nous ne sommes pas le 'network_owner'.
+        """
+        pass
+
+    def get_sync_state(self) -> Any:
+        """
+        Extrait et retourne l'état des entités locales pour diffusion sur le réseau.
+        """
+        return None
 
     def get_battle_summary(self) -> dict:
         survivors: Dict[str, dict] = {}
