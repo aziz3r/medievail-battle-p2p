@@ -1,38 +1,59 @@
 /*
- * reseau.c — Routeur UDP P2P (Windows / Winsock2)
+ * reseau.c — Routeur UDP P2P Multi-plateforme (Windows / Mac / Linux)
  *
- * Fait le pont entre le jeu Python local et l'adversaire distant
- * en ecoutant simultanement deux sockets UDP via select().
- *
- * Flux sortant : Python (PORT_IPC_IN) --> C --> Adversaire (REMOTE_IP:REMOTE_PORT)
- * Flux entrant : Adversaire (PORT_NET_IN) --> C --> Python (127.0.0.1:PORT_IPC_OUT)
- *
- * Compilation : gcc reseau.c -o reseau.exe -lws2_32
- * Lancement   : reseau.exe
+ * Fait le pont entre le jeu Python local et l'adversaire distant.
+ * Supporte le mode P2P avec une configuration de ports flexible.
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <winsock2.h>
 
-/* --- Configuration ------------------------------------------------------- */
-#define PORT_IPC_IN   5000          /* Le C ecoute le Python local ici        */
+#ifdef _WIN32
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
+    #pragma comment(lib, "ws2_32.lib")
+    typedef int socklen_t;
+#else
+    #include <sys/socket.h>
+    #include <netinet/in.h>
+    #include <arpa/inet.h>
+    #include <unistd.h>
+    #include <errno.h>
+    typedef int SOCKET;
+    #define INVALID_SOCKET -1
+    #define SOCKET_ERROR -1
+    #define closesocket close
+#endif
+
+/* --- Configuration par défaut -------------------------------------------- */
+#define PORT_IPC_IN   5000          /* Le C écoute le Python local ici        */
 #define PORT_IPC_OUT  5001          /* Le C renvoie vers le Python local ici  */
-#define PORT_NET_IN   6000          /* Le C ecoute l'adversaire ici           */
-#define REMOTE_IP     "127.0.0.1"   /* IP de l'adversaire (localhost = tests) */
-#define REMOTE_PORT   6001          /* Port d'ecoute de l'adversaire          */
+#define BUFFER_SIZE   65536         /* Buffer augmenté pour les grosses armées */
+#define ACK_MSG       "{\"type\": \"ack\", \"status\": \"ok\"}"
 
-#define BUFFER_SIZE   4096
-#define ACK_MSG       "[C-Routeur] OK - message transmis au reseau."
+/* --- Variables de session ------------------------------------------------ */
+int g_local_port_net = 6000;
+int g_remote_port_net = 6001;
+char g_remote_ip[64] = "127.0.0.1";
+int g_port_ipc_in = 5000;
+int g_port_ipc_out = 5001;
+int g_is_initialized = 0;
+
 /* ------------------------------------------------------------------------- */
 
-/* Cree, configure et bind un socket UDP sur l'adresse et le port donnes.
-   Retourne INVALID_SOCKET en cas d'echec. */
-static SOCKET create_udp_socket(const char *bind_ip, int port)
-{
+static void print_error(const char *msg) {
+#ifdef _WIN32
+    fprintf(stderr, "[ERREUR] %s : %d\n", msg, WSAGetLastError());
+#else
+    fprintf(stderr, "[ERREUR] %s : %s\n", msg, strerror(errno));
+#endif
+}
+
+static SOCKET create_udp_socket(const char *bind_ip, int port) {
     SOCKET sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock == INVALID_SOCKET) {
-        fprintf(stderr, "[ERREUR] socket() : %d\n", WSAGetLastError());
+        print_error("socket()");
         return INVALID_SOCKET;
     }
 
@@ -43,122 +64,111 @@ static SOCKET create_udp_socket(const char *bind_ip, int port)
     addr.sin_addr.s_addr = inet_addr(bind_ip);
 
     if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) == SOCKET_ERROR) {
-        fprintf(stderr, "[ERREUR] bind() sur port %d : %d\n", port, WSAGetLastError());
+        print_error("bind()");
         closesocket(sock);
         return INVALID_SOCKET;
     }
     return sock;
 }
 
-int main(void)
-{
+int main(int argc, char *argv[]) {
+    /* Paramètres : [port_local_net] [remote_ip] [remote_port] [port_ipc_in] [port_ipc_out] */
+    if (argc >= 2) g_local_port_net = atoi(argv[1]);
+    if (argc >= 3) strncpy(g_remote_ip, argv[2], 63);
+    if (argc >= 4) g_remote_port_net = atoi(argv[3]);
+    if (argc >= 5) g_port_ipc_in = atoi(argv[4]);
+    if (argc >= 6) g_port_ipc_out = atoi(argv[5]);
+
+#ifdef _WIN32
     WSADATA wsa;
     if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
-        fprintf(stderr, "[ERREUR] WSAStartup : %d\n", WSAGetLastError());
+        print_error("WSAStartup");
         return 1;
     }
+#endif
 
-    /* -- Initialisation des sockets --------------------------------------- */
-    SOCKET socket_ipc = create_udp_socket("127.0.0.1", PORT_IPC_IN);
-    SOCKET socket_net = create_udp_socket("0.0.0.0",   PORT_NET_IN);
-
+    SOCKET socket_ipc = create_udp_socket("127.0.0.1", g_port_ipc_in);
+    SOCKET socket_net = create_udp_socket("0.0.0.0",   g_local_port_net);
+    
     if (socket_ipc == INVALID_SOCKET || socket_net == INVALID_SOCKET) {
+#ifdef _WIN32
         WSACleanup();
+#endif
         return 1;
     }
 
     printf("==================================================\n");
-    printf("       ROUTEUR UDP P2P - demarre                 \n");
+    printf("       ROUTEUR P2P MULTI-PLATEFORME              \n");
     printf("==================================================\n");
-    printf("  [IPC] Ecoute Python local  -> port %d\n", PORT_IPC_IN);
-    printf("  [IPC] Renvoie vers Python  -> port %d\n", PORT_IPC_OUT);
-    printf("  [NET] Ecoute adversaire    -> port %d\n", PORT_NET_IN);
-    printf("  [NET] Envoie vers          -> %s:%d\n", REMOTE_IP, REMOTE_PORT);
+    printf("  [IPC] Port locale   : %d (In) / %d (Out)\n", g_port_ipc_in, g_port_ipc_out);
+    printf("  [NET] Ecoute P2P    : %d\n", g_local_port_net);
+    printf("  [NET] Destinataire  : %s:%d\n", g_remote_ip, g_remote_port_net);
     printf("==================================================\n\n");
 
-    /* -- Adresses de destination pre-construites -------------------------- */
-
-    /* Vers l'adversaire distant (via socket_net) */
     struct sockaddr_in remote_addr;
     memset(&remote_addr, 0, sizeof(remote_addr));
     remote_addr.sin_family      = AF_INET;
-    remote_addr.sin_port        = htons(REMOTE_PORT);
-    remote_addr.sin_addr.s_addr = inet_addr(REMOTE_IP);
+    remote_addr.sin_port        = htons(g_remote_port_net);
+    remote_addr.sin_addr.s_addr = inet_addr(g_remote_ip);
 
-    /* Vers le Python local sur PORT_IPC_OUT (via socket_ipc) */
     struct sockaddr_in local_python_addr;
     memset(&local_python_addr, 0, sizeof(local_python_addr));
     local_python_addr.sin_family      = AF_INET;
-    local_python_addr.sin_port        = htons(PORT_IPC_OUT);
+    local_python_addr.sin_port        = htons(g_port_ipc_out);
     local_python_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
-    /* -- Boucle principale avec select() ---------------------------------- */
     char buffer[BUFFER_SIZE];
     struct sockaddr_in sender_addr;
-    int sender_len;
+    socklen_t sender_len;
 
     while (1) {
-        /* Prepare le fd_set a chaque iteration (select() le modifie) */
         fd_set read_fds;
         FD_ZERO(&read_fds);
         FD_SET(socket_ipc, &read_fds);
         FD_SET(socket_net, &read_fds);
 
-        /* Attend indefiniment qu'un socket soit pret (timeout = NULL) */
-        int ready = select(0, &read_fds, NULL, NULL, NULL);
+        int max_fd = (socket_ipc > socket_net) ? (int)socket_ipc : (int)socket_net;
+        int ready = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
+
         if (ready == SOCKET_ERROR) {
-            fprintf(stderr, "[ERREUR] select() : %d\n", WSAGetLastError());
+            print_error("select()");
             break;
         }
 
-        /* == Flux SORTANT : Python local --> Adversaire distant =========== */
+        /* --- Flux SORTANT : Python -> Réseau --- */
         if (FD_ISSET(socket_ipc, &read_fds)) {
-            memset(buffer, 0, BUFFER_SIZE);
             sender_len = sizeof(sender_addr);
-
-            int n = recvfrom(socket_ipc, buffer, BUFFER_SIZE - 1, 0,
-                             (struct sockaddr *)&sender_addr, &sender_len);
+            int n = recvfrom(socket_ipc, buffer, BUFFER_SIZE - 1, 0, (struct sockaddr *)&sender_addr, &sender_len);
             if (n > 0) {
-                printf("[>>] [IPC->NET] Recu du Python (%d octets) : %s\n", n, buffer);
-
-                /* FIX: on envoie via socket_NET (pas socket_ipc) vers l'adversaire */
-                int sent = sendto(socket_net, buffer, n, 0,
-                                  (struct sockaddr *)&remote_addr, sizeof(remote_addr));
-                if (sent == SOCKET_ERROR)
-                    fprintf(stderr, "     [ERREUR] sendto adversaire : %d\n", WSAGetLastError());
-                else
-                    printf("     [>>] Transmis a %s:%d\n\n", REMOTE_IP, REMOTE_PORT);
-
-                /* ACK vers Python pour eviter son timeout */
-                sendto(socket_ipc, ACK_MSG, (int)strlen(ACK_MSG), 0,
-                       (struct sockaddr *)&sender_addr, sender_len);
+                buffer[n] = '\0';
+                printf("[IPC -> NET] Envoi vers %s:%d\n", g_remote_ip, g_remote_port_net);
+                sendto(socket_net, buffer, n, 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
+                
+                /* Confirmation au Python */
+                sendto(socket_ipc, ACK_MSG, (int)strlen(ACK_MSG), 0, (struct sockaddr *)&sender_addr, sender_len);
             }
         }
 
-        /* == Flux ENTRANT : Adversaire distant --> Python local ============ */
+        /* --- Flux ENTRANT : Réseau -> Python --- */
         if (FD_ISSET(socket_net, &read_fds)) {
-            memset(buffer, 0, BUFFER_SIZE);
             sender_len = sizeof(sender_addr);
-
-            int n = recvfrom(socket_net, buffer, BUFFER_SIZE - 1, 0,
-                             (struct sockaddr *)&sender_addr, &sender_len);
+            int n = recvfrom(socket_net, buffer, BUFFER_SIZE - 1, 0, (struct sockaddr *)&sender_addr, &sender_len);
             if (n > 0) {
-                printf("[<<] [NET->IPC] Recu de l'adversaire (%d octets) : %s\n", n, buffer);
-
-                /* FIX: on envoie via socket_IPC (pas socket_net) vers le Python local */
-                int sent = sendto(socket_ipc, buffer, n, 0,
-                                  (struct sockaddr *)&local_python_addr, sizeof(local_python_addr));
-                if (sent == SOCKET_ERROR)
-                    fprintf(stderr, "     [ERREUR] sendto Python local : %d\n", WSAGetLastError());
-                else
-                    printf("     [<<] Transmis au Python local sur port %d\n\n", PORT_IPC_OUT);
+                buffer[n] = '\0';
+                printf("[NET -> IPC] Reçu de %s:%d\n", inet_ntoa(sender_addr.sin_addr), ntohs(sender_addr.sin_port));
+                
+                /* Mise à jour dynamique de l'IP distante si on reçoit un paquet (Optionnel) */
+                /* strncpy(g_remote_ip, inet_ntoa(sender_addr.sin_addr), 63); */
+                
+                sendto(socket_ipc, buffer, n, 0, (struct sockaddr *)&local_python_addr, sizeof(local_python_addr));
             }
         }
     }
 
-    /* -- Nettoyage --------------------------------------------------------- */
     closesocket(socket_ipc);
     closesocket(socket_net);
+#ifdef _WIN32
     WSACleanup();
+#endif
     return 0;
 }

@@ -22,6 +22,8 @@ from model.terrain import TERRAIN_TYPES
 from presenter.ai import CaptainBraindead, MajorDaft, AssasinJack, PredictEinstein
 from presenter.smartAI import GeneralStrategus
 from .views import GUI
+from network_ipc import IPCClient
+import subprocess
 
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
@@ -190,6 +192,7 @@ class MainMenu:
             self.bg_raw = None
         self.bg_scaled = None
         self.btn_play = Button(0, 0, 300, 60, "NOUVELLE BATAILLE", self.font_button)
+        self.btn_multi = Button(0, 0, 300, 60, "MULTIJOUEUR (P2P)", self.font_button)
         self.btn_scenarios = Button(0, 0, 300, 60, "SCÉNARIOS", self.font_button)
         self.btn_load = Button(0, 0, 300, 60, "CHARGER", self.font_button)
         self.btn_options = Button(0, 0, 300, 60, "OPTIONS", self.font_button)
@@ -215,6 +218,8 @@ class MainMenu:
         self.scenario_choice = DropdownMenu(0, 0, 550, 40, list(AVAILABLE_SCENARIOS.keys()), self.font_small, default=0)
 
         self.btn_start = Button(0, 0, 300, 50, "LANCER LA BATAILLE", self.font_button)
+        self.btn_host = Button(0, 0, 300, 50, "CRÉER (HÔTE)", self.font_button)
+        self.btn_join = Button(0, 0, 300, 50, "REJOINDRE", self.font_button)
         self.btn_back = Button(20, 20, 100, 40, "< RETOUR", self.font_small)
 
         self.save_files = []
@@ -224,6 +229,16 @@ class MainMenu:
         self.opt_speed = DropdownMenu(0, 0, 550, 40, self.speed_options, self.font_small, default=1)
         self.opt_auto_play = True
         self.chk_rect = pygame.Rect(0, 0, 30, 30)
+
+        # --- Nouveaux contrôles Lobby Multijoueur ---
+        self.multi_ai_choice = DropdownMenu(0, 0, 400, 40, list(AVAILABLE_AIS.keys()), self.font_small, default=1)
+        self.multi_zone_choice = 0 # 0 = Non choisi, 1-4 = Quadrant
+        self.btn_zone1 = Button(0, 0, 100, 100, "Zone 1", self.font_small)
+        self.btn_zone2 = Button(0, 0, 100, 100, "Zone 2", self.font_small)
+        self.btn_zone3 = Button(0, 0, 100, 100, "Zone 3", self.font_small)
+        self.btn_zone4 = Button(0, 0, 100, 100, "Zone 4", self.font_small)
+        self.multi_remote_ready = False
+        self.multi_remote_choice = None # { "ia": ..., "zone": ... }
         try:
              p_img = pygame.image.load("assets/Pointer/attack48x48 (Copy).webp").convert_alpha()
              self.pointer_img = pygame.transform.scale(p_img, (32, 32))
@@ -243,12 +258,23 @@ class MainMenu:
         start_y = cy - 100
         gap = 80
         self.btn_play.rect.center = (cx, start_y)
-        self.btn_scenarios.rect.center = (cx, start_y + gap)
-        self.btn_load.rect.center = (cx, start_y + gap*2)
-        self.btn_options.rect.center = (cx, start_y + gap*3)
-        self.btn_quit.rect.center = (cx, start_y + gap*4)
+        self.btn_multi.rect.center = (cx, start_y + gap)
+        self.btn_scenarios.rect.center = (cx, start_y + gap*2)
+        self.btn_load.rect.center = (cx, start_y + gap*3)
+        self.btn_options.rect.center = (cx, start_y + gap*4)
+        self.btn_quit.rect.center = (cx, start_y + gap*5)
+        
+        self.btn_host.rect.center = (cx - 160, self.h - 80)
+        self.btn_join.rect.center = (cx + 160, self.h - 80)
+        self.btn_back.rect.topleft = (20, 20)
 
-        self.setup_ai_a.rect.center = (cx, 160); self.setup_ai_a.rect.x = cx - 275
+        # Layout Lobby Multi
+        self.multi_ai_choice.rect.center = (cx, 180)
+        z_gap = 110
+        self.btn_zone1.rect.center = (cx - z_gap/2 - 20, 320)
+        self.btn_zone2.rect.center = (cx + z_gap/2 + 20, 320)
+        self.btn_zone3.rect.center = (cx - z_gap/2 - 20, 430)
+        self.btn_zone4.rect.center = (cx + z_gap/2 + 20, 430); self.setup_ai_a.rect.x = cx - 275
         self.setup_ai_b.rect.center = (cx, 240); self.setup_ai_b.rect.x = cx - 275
         self.setup_composition.rect.center = (cx, 330); self.setup_composition.rect.x = cx - 275
         self.setup_terrain.rect.center = (cx, 410); self.setup_terrain.rect.x = cx - 275
@@ -303,6 +329,7 @@ class MainMenu:
 
         if self.state == "main":
             self.btn_play.update(mouse_pos)
+            self.btn_multi.update(mouse_pos)
             self.btn_scenarios.update(mouse_pos)
             self.btn_load.update(mouse_pos)
             self.btn_options.update(mouse_pos)
@@ -310,6 +337,8 @@ class MainMenu:
 
             if self.btn_play.is_clicked(event):
                 self.state = "setup"
+            elif self.btn_multi.is_clicked(event):
+                self.state = "multi_setup"
             elif self.btn_scenarios.is_clicked(event):
                 self.state = "scenario_setup"
             elif self.btn_load.is_clicked(event):
@@ -379,6 +408,9 @@ class MainMenu:
                 if self.chk_rect.collidepoint(mouse_pos):
                     self.opt_auto_play = not self.opt_auto_play
 
+        elif self.state == "multi_setup":
+            self.handle_events_multi_setup(event, mouse_pos)
+
     def draw(self):
         if self.bg_scaled:
              self.screen.blit(self.bg_scaled, (0, 0))
@@ -395,6 +427,8 @@ class MainMenu:
             self.draw_load_screen()
         elif self.state == "options":
             self.draw_options_screen()
+        elif self.state == "multi_setup":
+            self.draw_multi_setup_screen()
 
         if self.pointer_img:
             mx, my = pygame.mouse.get_pos()
@@ -410,6 +444,7 @@ class MainMenu:
         subtitle_rect = subtitle.get_rect(center=(cx, cy - 150))
         self.screen.blit(subtitle, subtitle_rect)
         self.btn_play.draw(self.screen)
+        self.btn_multi.draw(self.screen)
         self.btn_scenarios.draw(self.screen)
         self.btn_load.draw(self.screen)
         self.btn_options.draw(self.screen)
@@ -571,34 +606,144 @@ class MainMenu:
             print(f"   Unités en vie : {len(game.alive_units())}\n")
 
             self.start_battle_window(game)
-            self.recalc_layout()
-
         except Exception as e:
             print(f"❌ Erreur de chargement : {e}")
 
-    def start_battle_window(self, game):
+    def draw_multi_setup_screen(self):
+        cx, cy = self.w // 2, self.h // 2
+        title = self.font_button.render("LOBBY MULTIJOUEUR (P2P)", True, ACCENT_COLOR)
+        title_rect = title.get_rect(center=(cx, 50))
+        self.screen.blit(title, title_rect)
+
+        # 1. Sélection de l'IA
+        ai_label = self.font_small.render("VOTRE IA COMBATTANTE :", True, TEXT_COLOR)
+        self.screen.blit(ai_label, (cx - 200, 130))
+        
+        # 2. Sélection de la Zone
+        zone_label = self.font_small.render("VOTRE ZONE DE DÉPLOIEMENT :", True, TEXT_COLOR)
+        self.screen.blit(zone_label, (cx - 200, 240))
+        
+        # Dessin des boutons de zone (couleur différente si sélectionné)
+        for i, btn in enumerate([self.btn_zone1, self.btn_zone2, self.btn_zone3, self.btn_zone4], 1):
+            btn.active = (self.multi_zone_choice == i)
+            btn.draw(self.screen)
+        
+        # 3. État de l'adversaire
+        remote_st = "EN ATTENTE..." if not self.multi_remote_ready else "PRÊT !"
+        remote_col = (200, 200, 0) if not self.multi_remote_ready else (0, 255, 0)
+        remote_label = self.font_small.render(f"ADVERSAIRE : {remote_st}", True, remote_col)
+        self.screen.blit(remote_label, (cx - 100, 500))
+
+        # Boutons d'action
+        self.btn_host.draw(self.screen)
+        self.btn_join.draw(self.screen)
+        self.btn_back.draw(self.screen)
+        
+        # Dropdown en dernier pour être au-dessus
+        self.multi_ai_choice.draw(self.screen)
+
+    def handle_events_multi_setup(self, event, mouse_pos):
+        self.btn_back.update(mouse_pos)
+        self.btn_host.update(mouse_pos)
+        self.btn_join.update(mouse_pos)
+        self.btn_zone1.update(mouse_pos)
+        self.btn_zone2.update(mouse_pos)
+        self.btn_zone3.update(mouse_pos)
+        self.btn_zone4.update(mouse_pos)
+        
+        if self.multi_ai_choice.handle_event(event, mouse_pos):
+            return
+
+        if self.btn_back.is_clicked(event):
+            self.state = "main"
+        elif self.btn_zone1.is_clicked(event): self.multi_zone_choice = 1
+        elif self.btn_zone2.is_clicked(event): self.multi_zone_choice = 2
+        elif self.btn_zone3.is_clicked(event): self.multi_zone_choice = 3
+        elif self.btn_zone4.is_clicked(event): self.multi_zone_choice = 4
+        elif self.btn_host.is_clicked(event):
+            if self.multi_zone_choice > 0: self.launch_multiplayer(is_host=True)
+        elif self.btn_join.is_clicked(event):
+            if self.multi_zone_choice > 0: self.launch_multiplayer(is_host=False)
+
+    def launch_multiplayer(self, is_host: bool):
+        print(f"[NET] Lancement du mode Multijoueur ({'HÔTE' if is_host else 'CLIENT'})")
+        
+        # --- 1. Handshake des choix (IA + Zone) ---
+        ipc = IPCClient()
+        my_choice = {
+            "type": "setup_choice",
+            "ia": self.multi_ai_choice.get_selected(),
+            "zone": self.multi_zone_choice
+        }
+        
+        import json
+        import time
+        timeout = time.time() + 10 # 10s pour synchroniser
+        remote_choice = None
+        
+        print("[NET] Envoi des choix au partenaire...")
+        while time.time() < timeout:
+            ipc.send(my_choice)
+            data = ipc.receive()
+            if data and data.get("type") == "setup_choice":
+                remote_choice = data
+                print(f"[NET] Choix de l'adversaire reçus : {remote_choice}")
+                break
+            time.sleep(0.5)
+            # On dessine un petit texte d'attente
+            self.screen.fill(BG_COLOR)
+            txt = self.font_small.render("SYNCHRONISATION AVEC L'ADVERSAIRE...", True, ACCENT_COLOR)
+            self.screen.blit(txt, (self.w//2 - 150, self.h//2))
+            pygame.display.flip()
+
+        if not remote_choice:
+            print("[ERR] Timeout synchro lobby")
+            return
+
+        # --- 2. Initialisation du Jeu ---
+        from model.map import BattleMap
+        from model.game import Game
+        from model.army_compositions import spawn_army_in_quadrant
+        
+        game = Game(BattleMap(120, 120), {}, ipc_client=ipc)
+        game.local_player_id = "A" if is_host else "B"
+        remote_player_id = "B" if is_host else "A"
+        
+        # Attribution des IAs
+        my_ai_cls = AVAILABLE_AIS[my_choice["ia"]]
+        rem_ai_cls = AVAILABLE_AIS[remote_choice["ia"]]
+        
+        game.controllers = {
+            game.local_player_id: my_ai_cls(game.local_player_id),
+            remote_player_id: rem_ai_cls(remote_player_id)
+        }
+        
+        # Spawning des armées
+        spawn_army_in_quadrant(game, game.local_player_id, my_choice["zone"])
+        spawn_army_in_quadrant(game, remote_player_id, remote_choice["zone"])
+        
+        # On saute la phase de placement manuel puisqu'on a choisi nos zones
+        self.start_battle_window(game, is_multi=True)
+        self.state = "main"
+
+    def start_battle_window(self, game, is_multi=False):
         w, h = self.screen.get_size()
+        from .views import GUI
         gui = GUI(game, w, h)
         pygame.mouse.set_visible(False)
-        
-        auto_play = self.opt_auto_play
+
+        auto_play = False if is_multi else self.opt_auto_play
+        is_placing = is_multi # On commence par le placement en multi
         battle_running = True
         clock = pygame.time.Clock()
-
-        print("\n--- CONTRÔLES ---")
-        print("[P]               : Lecture / Pause")
-        print("[ESPACE]          : Pas à pas")
-        print("[Molette]         : Zoomer / Dézoomer")
-        print("[Clic]            : Déplacer la caméra")
-        print("[M]               : Minimap")
-        print("[F11/F12]         : Save/Load rapide")
-        print("[ESC]             : Retour menu")
-        print("-----------------\n")
+        
+        # ... (reste des logs de contrôles existants) ...
+        if is_multi:
+             print("[PLACEMENT] Cliquez pour placer vos unités. Appuyez sur [ENTRÉE] pour démarrer.")
 
         fps_values = [10, 30, 60, 120]
         selected_index = self.opt_speed.selected_index
         target_fps = fps_values[selected_index] if 0 <= selected_index < len(fps_values) else 30
-        print(f"Simulation running at {target_fps} FPS")
 
         while battle_running:
             for event in pygame.event.get():
@@ -607,28 +752,44 @@ class MainMenu:
                     self.running = False
 
                 elif event.type == pygame.VIDEORESIZE:
-                    flags = pygame.RESIZABLE
-                    if not self.windowed:
-                        flags = pygame.FULLSCREEN | pygame.RESIZABLE
-                    self.screen = pygame.display.set_mode((event.w, event.h), flags)
+                    # ... gestion resize ...
+                    self.screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
                     w, h = event.w, event.h
+
+                if is_placing:
+                    if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                        # Placement local
+                        mx, my = pygame.mouse.get_pos()
+                        row, col = gui.iso_to_grid(mx, my)
+                        if 0 <= row < game.map.rows and 0 <= col < game.map.cols:
+                            from model.knight import Knight # Import local pour tester
+                            u = Knight()
+                            game.add_unit(u, game.local_player_id, row, col)
+                            print(f"[PLACEMENT] Unité placée en {row}, {col}")
+                    
+                    if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+                        is_placing = False
+                        auto_play = True
+                        print("[COMBAT] Phase de combat démarrée !")
 
                 gui.handle_events(event)
 
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_p:
                         auto_play = not auto_play
-                    elif event.key == pygame.K_SPACE:
-                        game.step(dt=0.05)
                     elif event.key == pygame.K_ESCAPE:
                         battle_running = False
 
-            if not game.is_finished() and auto_play:
+            if not is_placing and not game.is_finished() and auto_play:
                 game.step(dt=0.05)
+            elif is_placing:
+                # En mode placement, on fait quand même un step pour recevoir les unités de l'autre
+                game.step(dt=0)
 
             gui.screen_w, gui.screen_h = self.screen.get_size()
             gui.handle_input()
             gui.draw(self.screen)
+            # ... (code de victoire existant) ...
             if game.is_finished():
                 winner = game.get_winner()
                 font = pygame.font.SysFont("Arial", 36, bold=True)

@@ -27,8 +27,8 @@ class Guerrier(ABC):
 
         # --- Identifiants pour le réseau ---
         team = kwargs.get('team', None)
-        # uid : combinaison type d'unité + UUID unique pour ce processus
-        self.uid = f"{type(self).__name__}_{id(self)}_{uuid.uuid4().hex[:8]}"
+        # uid : on laisse le Game l'assigner proprement
+        self.uid = kwargs.get('uid', None)
         # proprietaire_reseau : par défaut l'équipe de l'unité
         self.proprietaire_reseau = team
 

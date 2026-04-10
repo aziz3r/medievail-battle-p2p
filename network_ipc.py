@@ -1,52 +1,64 @@
 """
-network_ipc.py — Client Local UDP (IPC)
-Envoie un dictionnaire Python sérialisé en JSON au serveur C sur 127.0.0.1:5000
-et affiche l'accusé de réception renvoyé.
-
-Usage autonome : python network_ipc.py
+network_ipc.py — Pont de communication Python <-> C
+Fournit une interface pour envoyer et recevoir des données via le routeur C.
 """
 
 import socket
 import json
+import select
 
-SERVER_ADDR = ("127.0.0.1", 5000)
-TIMEOUT_SEC = 5          # secondes d'attente max pour la réponse du C
-BUFFER_SIZE = 4096
+class IPCClient:
+    def __init__(self, ip="127.0.0.1", port_in=5000, port_out=5001):
+        self.ip = ip
+        self.port_in = port_in   # Port d'entrée du routeur C
+        self.port_out = port_out # Port de sortie (notre écoute)
+        self.buffer_size = 8192
+        
+        # Socket pour l'envoi
+        self.sock_out = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        
+        # Socket pour la réception (bindé sur PORT_IPC_OUT)
+        self.sock_in = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock_in.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock_in.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 65535)
+        self.sock_out.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 65535)
+        try:
+            self.sock_in.bind((self.ip, self.port_out))
+            self.sock_in.setblocking(False)
+            print(f"[IPC] Listening for C updates on {self.ip}:{self.port_out}")
+        except Exception as e:
+            print(f"[IPC] Warning: Could not bind to {self.ip}:{self.port_out}: {e}")
 
+    def send(self, data: dict):
+        """Sérialise et envoie un dictionnaire au processus C."""
+        try:
+            payload = json.dumps(data).encode("utf-8")
+            self.sock_out.sendto(payload, (self.ip, self.port_in))
+        except Exception as e:
+            print(f"[IPC] Error sending data: {e}")
 
-def send_to_c(data_dict: dict) -> None:
-    """
-    Sérialise data_dict en JSON et l'envoie au serveur C via UDP.
-    Attend puis affiche la réponse (accusé de réception).
-    """
-    # Création du socket UDP
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.settimeout(TIMEOUT_SEC)
+    def receive(self):
+        """
+        Tente de lire un message JSON depuis le processus C.
+        Retourne le dictionnaire ou None s'il n'y a rien.
+        """
+        try:
+            # Vérifier s'il y a des données sans bloquer
+            ready = select.select([self.sock_in], [], [], 0)
+            if ready[0]:
+                data, addr = self.sock_in.recvfrom(self.buffer_size)
+                return json.loads(data.decode("utf-8"))
+        except (socket.error, json.JSONDecodeError, UnicodeDecodeError):
+            pass
+        return None
 
-    try:
-        # Sérialisation du dictionnaire en JSON encodé UTF-8
-        payload = json.dumps(data_dict).encode("utf-8")
+    def close(self):
+        self.sock_in.close()
+        self.sock_out.close()
 
-        # Envoi vers le serveur C
-        sock.sendto(payload, SERVER_ADDR)
-        print(f"[Python-Client] Envoyé : {payload.decode('utf-8')}")
-
-        # Attente et affichage de la réponse
-        response, server = sock.recvfrom(BUFFER_SIZE)
-        print(f"[Python-Client] Réponse du C : {response.decode('utf-8')}")
-
-    except socket.timeout:
-        print("[Python-Client] ERREUR : pas de réponse du serveur C (timeout).")
-    finally:
-        sock.close()
-
-
+# Pour le test unitaire
 if __name__ == "__main__":
-    # Dictionnaire de test simulant un chevalier
-    knight = {
-        "uid": "A_Knight_123",
-        "hp":  100,
-        "x":   10.5,
-        "y":   15.0,
-    }
-    send_to_c(knight)
+    client = IPCClient()
+    print("Envoi d'un test...")
+    client.send({"type": "test", "content": "hello world"})
+    client.close()

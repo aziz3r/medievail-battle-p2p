@@ -20,6 +20,40 @@ from model.knight import Knight
 from model.pikeman import Pikeman
 from model.crossbowman import Crossbowman
 
+# --- Définition des Zones (Quadrants) ---
+# Format: (id) -> (min_x, max_x, min_y, max_y)
+QUADRANT_BOUNDS = {
+    1: (10, 50, 10, 50),    # Top-Left
+    2: (70, 110, 10, 50),   # Top-Right
+    3: (10, 50, 70, 110),   # Bottom-Left
+    4: (70, 110, 70, 110),  # Bottom-Right
+}
+
+def spawn_army_in_quadrant(game, team, zone_id):
+    """
+    Génère une armée standard (27 unités) dans un quadrant spécifique.
+    """
+    if zone_id not in QUADRANT_BOUNDS:
+        zone_id = 1
+        
+    x_min, x_max, y_min, y_max = QUADRANT_BOUNDS[zone_id]
+    
+    # Centre de la zone pour le placement relatif
+    cx = (x_min + x_max) // 2
+    
+    # 11 Piquiers (Première ligne)
+    for r in range(y_min, y_min + 22, 2):
+        game.add_unit(Pikeman(), team, row=r, col=cx + 2)
+        
+    # 7 Chevaliers (Milieu)
+    for r in range(y_min + 4, y_min + 18, 2):
+        game.add_unit(Knight(), team, row=r, col=cx)
+        
+    # 9 Arbalétriers (Arrière)
+    for r in range(y_min + 2, y_min + 20, 2):
+        game.add_unit(Crossbowman(), team, row=r, col=cx - 2)
+        
+    print(f"[PLACEMENT] Armée {team} placée dans la Zone {zone_id}")
 
 def create_standard_armies(terrain_func=None):
     """

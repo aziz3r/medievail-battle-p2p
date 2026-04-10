@@ -16,7 +16,9 @@ class Game:
         self.map: BattleMap = battle_map
         self.controllers: Dict[str, Any] = controllers
         self.ipc_client = ipc_client
-        self.local_player_id = local_player_id
+        self.local_player_id = "A" # Par défaut
+        self.unit_counter = 0      # Pour des UID stables
+        self.sync_tick = 0         # Pour limiter le débit réseauyer_id
         self.units: List[Any] = []
         self.time: float = 0.0
         self.running: bool = True
@@ -38,10 +40,21 @@ class Game:
         for team, controller in self.controllers.items():
             self.next_decision_time[team] = 0.0
 
-    def add_unit(self, unit: Any, team: str, row: int, col: int) -> None:
-        setattr(unit, "team", team)
+    def add_unit(self, unit: Guerrier, team: str, row: int, col: int) -> None:
+        unit.team = team
+        # Attribution d'un UID stable si absent
+        if not getattr(unit, "uid", None):
+            self.unit_counter += 1
+            unit.uid = f"{team}_{self.unit_counter}"
+            
         self.units.append(unit)
-        self.map.place_unit(unit, row, col)
+        try:
+            # Clamping de sécurité pour éviter les crashs hors-bornes
+            safe_row = max(0, min(row, self.map.rows - 1))
+            safe_col = max(0, min(col, self.map.cols - 1))
+            self.map.place_unit(unit, safe_row, safe_col)
+        except Exception as e:
+            print(f"[WAR] Erreur placement unité {unit.uid} : {e}")
 
         team_stats = self.initial_counts.setdefault(team, {"units": 0, "by_type": {}})
         team_stats["units"] += 1
@@ -100,7 +113,7 @@ class Game:
                 if data:
                     self.apply_sync_state(data, self.local_player_id)
             except Exception as e:
-                # Robustesse : ignorer silencieusement ou logger si le Daemon est injoignable
+                print(f"[RESEAU] Erreur lors de la réception : {e}")
                 pass
         # === FIN SYNCHRONISATION P2P (RECEPTION) ===
 
@@ -364,16 +377,72 @@ class Game:
 
     def apply_sync_state(self, data: Any, local_id: str) -> None:
         """
-        Met à jour l'état du jeu selon les données reçues, notamment
-        les unités dont nous ne sommes pas le 'network_owner'.
+        Met à jour l'état du jeu selon les données reçues (Compact JSON).
+        data : { "t": "army_sync", "u": { uid: { "type": ..., "x": ..., "y": ..., "hp": ... } } }
         """
-        pass
+        try:
+            if not isinstance(data, dict) or data.get("t") != "as":
+                return
+
+            units_data = data.get("u", {})
+            for uid, info in units_data.items():
+                if not info or not isinstance(info, dict): continue
+                
+                # Chercher l'unité locale correspondante
+                target_unit = next((u for u in self.units if getattr(u, "uid", None) == uid), None)
+
+                if target_unit:
+                    # Mise à jour (Seulement si ce n'est pas notre unité locale)
+                    if getattr(target_unit, "team", None) != self.local_player_id:
+                        # Clamping pour la sécurité du déplacement
+                        target_unit.x = max(0.0, min(float(info.get("x", target_unit.x)), float(self.map.cols - 1)))
+                        target_unit.y = max(0.0, min(float(info.get("y", target_unit.y)), float(self.map.rows - 1)))
+                        target_unit.hp = float(info.get("h", target_unit.hp))
+                else:
+                    # Création (Nouvelle unité distante)
+                    team = uid.split('_')[0] if '_' in uid else ("B" if local_id == "A" else "A")
+                    if team == self.local_player_id: continue # Sécurité : on ignore si c'est censé être l'un des nôtres
+                    
+                    u_type = info.get("tp", "Pikeman")
+                    # Détermination de la classe (Import dynamique)
+                    from .knight import Knight
+                    from .pikeman import Pikeman
+                    from .crossbowman import Crossbowman
+                    from .wonder import Wonder
+                    classes = {"Knight": Knight, "Pikeman": Pikeman, "Crossbowman": Crossbowman, "Wonder": Wonder}
+                    cls = classes.get(u_type, Pikeman)
+                    
+                    # Clamping initial
+                    safe_x = max(0.0, min(float(info.get("x", 0.0)), float(self.map.cols - 1)))
+                    safe_y = max(0.0, min(float(info.get("y", 0.0)), float(self.map.rows - 1)))
+                    
+                    new_unit = cls(x=safe_x, y=safe_y)
+                    new_unit.uid = uid
+                    new_unit.team = team
+                    self.add_unit(new_unit, team, int(safe_y), int(safe_x))
+        except Exception as e:
+            print(f"[ERR] Sync Error: {e}")
 
     def get_sync_state(self) -> Any:
         """
-        Extrait et retourne l'état des entités locales pour diffusion sur le réseau.
+        Extrait l'état local (Compact JSON) toutes les 5 frames.
         """
-        return None
+        self.sync_tick += 1
+        if self.sync_tick % 5 != 0:
+            return None
+
+        local_units = {}
+        for u in self.alive_units():
+            if getattr(u, "team", None) == self.local_player_id:
+                local_units[u.uid] = {
+                    "tp": type(u).__name__,
+                    "x": round(u.x, 2),
+                    "y": round(u.y, 2),
+                    "h": round(u.hp, 1)
+                }
+        
+        if not local_units: return None
+        return {"t": "as", "u": local_units} # "t": "as" pour army_sync, "u" pour units
 
     def get_battle_summary(self) -> dict:
         survivors: Dict[str, dict] = {}

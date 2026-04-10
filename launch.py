@@ -17,8 +17,9 @@ def show_menu():
     print("  3. Visual Simulation")
     print("  4. Console Simulation")
     print("  5. Terminal View (Curses)")
-    print("  6. CLI Battle (Advanced)")
-    print("  7. Run Diagnostics")
+    print("  6. Multiplayer P2P (New)")
+    print("  7. CLI Battle (Advanced)")
+    print("  8. Run Diagnostics")
     print("  0. Exit")
     print("=" * 50)
 
@@ -64,6 +65,13 @@ def main():
             run_terminal.main()
 
         elif choice == "6":
+            print("\nLaunching Multiplayer Menu...")
+            from view.menu import MainMenu
+            menu = MainMenu()
+            menu.state = "multi_setup"
+            menu.run()
+
+        elif choice == "7":
             print("\nCLI Battle Mode")
             print("Usage: python -m presenter.battle <command>")
             print("Commands: run, load, tourney, plot")
