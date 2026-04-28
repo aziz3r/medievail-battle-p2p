@@ -12,7 +12,7 @@ class IPCClient:
         self.ip = ip
         self.port_in = port_in   # Port d'entrée du routeur C
         self.port_out = port_out # Port de sortie (notre écoute)
-        self.buffer_size = 8192
+        self.buffer_size = 65536
         
         # Socket pour l'envoi
         self.sock_out = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

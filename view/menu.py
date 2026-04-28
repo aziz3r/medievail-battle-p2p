@@ -719,8 +719,7 @@ class MainMenu:
         rem_ai_cls = AVAILABLE_AIS[remote_choice["ia"]]
         
         game.controllers = {
-            game.local_player_id: my_ai_cls(game.local_player_id),
-            remote_player_id: rem_ai_cls(remote_player_id)
+            game.local_player_id: my_ai_cls(game.local_player_id)
         }
         
         # Spawning des armées

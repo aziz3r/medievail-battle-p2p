@@ -41,18 +41,21 @@ def spawn_army_in_quadrant(game, team, zone_id):
     # Centre de la zone pour le placement relatif
     cx = (x_min + x_max) // 2
     
-    # 11 Piquiers (Première ligne)
-    for r in range(y_min, y_min + 22, 2):
-        game.add_unit(Pikeman(), team, row=r, col=cx + 2)
-        
-    # 7 Chevaliers (Milieu)
-    for r in range(y_min + 4, y_min + 18, 2):
-        game.add_unit(Knight(), team, row=r, col=cx)
-        
-    # 9 Arbalétriers (Arrière)
-    for r in range(y_min + 2, y_min + 20, 2):
-        game.add_unit(Crossbowman(), team, row=r, col=cx - 2)
-        
+    # LIGNE FRONTALE : Piquiers (3 colonnes x 20 lignes = 60 unités)
+    for c in range(cx + 1, cx + 4):
+        for r in range(y_min, y_max, 2):
+            game.add_unit(Pikeman(), team, row=r, col=c)
+            
+    # MILIEU : Chevaliers (2 colonnes x 18 lignes = 36 unités)
+    for c in range(cx - 1, cx + 1):
+        for r in range(y_min + 2, y_max - 2, 2):
+            game.add_unit(Knight(), team, row=r, col=c)
+            
+    # ARRIÈRE : Arbalétriers (3 colonnes x 20 lignes = 60 unités)
+    for c in range(cx - 4, cx - 1):
+        for r in range(y_min, y_max, 2):
+            game.add_unit(Crossbowman(), team, row=r, col=c)
+            
     print(f"[PLACEMENT] Armée {team} placée dans la Zone {zone_id}")
 
 def create_standard_armies(terrain_func=None):

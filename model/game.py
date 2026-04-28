@@ -17,7 +17,7 @@ class Game:
         self.controllers: Dict[str, Any] = controllers
         self.ipc_client = ipc_client
         self.local_player_id = "A" # Par défaut
-        self.unit_counters = {"A": 0, "B": 0} # Pour des UID stables par équipe
+        self.unit_counters: Dict[str, int] = {} # Compteurs par équipe pour des UID stables
         self.sync_tick = 0         # Pour limiter le débit réseauyer_id
         self.units: List[Any] = []
         self.time: float = 0.0
@@ -392,12 +392,15 @@ class Game:
                 target_unit = next((u for u in self.units if getattr(u, "uid", None) == uid), None)
 
                 if target_unit:
-                    # Mise à jour (Seulement si ce n'est pas notre unité locale)
+                    # Mise à jour des points de vie (on prend le minimum pour ne jamais annuler un dégât subi)
+                    if "h" in info:
+                        target_unit.hp = min(target_unit.hp, float(info["h"]))
+                        
+                    # Mise à jour de la position (Seulement si ce n'est pas notre unité locale)
                     if getattr(target_unit, "team", None) != self.local_player_id:
-                        # Clamping pour la sécurité du déplacement
-                        target_unit.x = max(0.0, min(float(info.get("x", target_unit.x)), float(self.map.cols - 1)))
-                        target_unit.y = max(0.0, min(float(info.get("y", target_unit.y)), float(self.map.rows - 1)))
-                        target_unit.hp = float(info.get("h", target_unit.hp))
+                        if "x" in info and "y" in info:
+                            target_unit.x = max(0.0, min(float(info["x"]), float(self.map.cols - 1)))
+                            target_unit.y = max(0.0, min(float(info["y"]), float(self.map.rows - 1)))
                 else:
                     # Création (Nouvelle unité distante)
                     team = uid.split('_')[0] if '_' in uid else ("B" if local_id == "A" else "A")
@@ -432,12 +435,18 @@ class Game:
             return None
 
         local_units = {}
-        for u in self.alive_units():
+        for u in self.units:
             if getattr(u, "team", None) == self.local_player_id:
+                # Propriétaire : on envoie tout l'état (position + hp)
                 local_units[u.uid] = {
                     "tp": type(u).__name__,
                     "x": round(u.x, 2),
                     "y": round(u.y, 2),
+                    "h": round(u.hp, 1)
+                }
+            else:
+                # Non-propriétaire : on envoie SEULEMENT les HP pour propager les dégâts qu'on a infligés
+                local_units[u.uid] = {
                     "h": round(u.hp, 1)
                 }
         
