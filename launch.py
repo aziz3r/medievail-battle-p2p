@@ -65,9 +65,9 @@ def main():
             run_terminal.main()
 
         elif choice == "6":
-            print("\nLaunching Multiplayer Menu...")
+            print("\nLaunching Multiplayer Menu (Windowed)...")
             from view.menu import MainMenu
-            menu = MainMenu()
+            menu = MainMenu(windowed=True)
             menu.state = "multi_setup"
             menu.run()
 

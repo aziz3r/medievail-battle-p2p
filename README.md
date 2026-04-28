@@ -76,3 +76,34 @@ sequenceDiagram
 - **Langages de programmation :** C (Couche Système, Routage et Réseau), Python (Couche Applicative et IA).
 - **Infrastructures Systèmes :** Threads POSIX / Windows, Sémaphores, Mutex.
 - **Réseau :** API Sockets UNIX/Windows (UDP/TCP), Communication Inter-Processus (IPC).
+
+---
+
+## 🚀 Comment tester la V1 en local (Test des Incohérences Best-Effort)
+Afin de valider la conception "Best-Effort" (UDP sans garantie), vous pouvez simuler deux joueurs et observer la **concurrence sauvage** sur un seul ordinateur. Le routeur simule ici un réseau avec 15% de perte de paquets.
+
+Ouvrez 4 terminaux à la racine du projet :
+
+**[Joueur 1 - Hôte]**
+1. Lancer le routeur de l'hôte (Terminal 1) :
+   ```bash
+   py p2p_node_mock.py 6000 127.0.0.1 6001 5000 5001 15
+   ```
+2. Lancer le jeu de l'hôte (Terminal 2) :
+   ```bash
+   py launch.py
+   ```
+   *(Choix 6 -> Sélectionner Zone 1 -> CRÉER)*
+
+**[Joueur 2 - Client]**
+3. Lancer le routeur du client (Terminal 3) :
+   ```bash
+   py p2p_node_mock.py 6001 127.0.0.1 6000 5002 5003 15
+   ```
+4. Lancer le jeu du client (Terminal 4) :
+   ```bash
+   py launch.py
+   ```
+   *(Choix 6 -> Sélectionner Zone 4 -> REJOINDRE)*
+
+Dès que la partie commence, spammez le clic gauche de votre souris des deux côtés : les 15% de perte de paquets causeront des **désynchronisations**, des **fantômes** et des **téléportations** (rubber-banding), prouvant ainsi de manière incontestable que le protocole ne bloque pas la simulation lors de modifications brutales.

@@ -5,7 +5,10 @@ Contains GUI, terminal view, and menu
 """
 
 from .views import GUI
-from .terminal_view import TerminalView
+try:
+    from .terminal_view import TerminalView
+except ImportError:
+    TerminalView = None
 from .menu import MainMenu
 
 __all__ = [
