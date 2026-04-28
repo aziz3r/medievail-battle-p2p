@@ -17,7 +17,7 @@ class Game:
         self.controllers: Dict[str, Any] = controllers
         self.ipc_client = ipc_client
         self.local_player_id = "A" # Par défaut
-        self.unit_counter = 0      # Pour des UID stables
+        self.unit_counters = {"A": 0, "B": 0} # Pour des UID stables par équipe
         self.sync_tick = 0         # Pour limiter le débit réseauyer_id
         self.units: List[Any] = []
         self.time: float = 0.0
@@ -44,8 +44,8 @@ class Game:
         unit.team = team
         # Attribution d'un UID stable si absent
         if not getattr(unit, "uid", None):
-            self.unit_counter += 1
-            unit.uid = f"{team}_{self.unit_counter}"
+            self.unit_counters[team] = self.unit_counters.get(team, 0) + 1
+            unit.uid = f"{team}_{self.unit_counters[team]}"
             
         self.units.append(unit)
         try:
