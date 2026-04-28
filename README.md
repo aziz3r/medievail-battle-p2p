@@ -87,7 +87,7 @@ Ouvrez 4 terminaux à la racine du projet :
 **[Joueur 1 - Hôte]**
 1. Lancer le routeur de l'hôte (Terminal 1) :
    ```bash
-   py p2p_node_mock.py 6000 127.0.0.1 6001 5000 5001 15
+   py p2p_node_mock.py 6000 127.0.0.1 6001 5000 5001 0
    ```
 2. Lancer le jeu de l'hôte (Terminal 2) :
    ```bash
@@ -98,7 +98,7 @@ Ouvrez 4 terminaux à la racine du projet :
 **[Joueur 2 - Client]**
 3. Lancer le routeur du client (Terminal 3) :
    ```bash
-   py p2p_node_mock.py 6001 127.0.0.1 6000 5002 5003 15
+   py p2p_node_mock.py 6001 127.0.0.1 6000 5002 5003 0
    ```
 4. Lancer le jeu du client (Terminal 4) :
    ```bash
