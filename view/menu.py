@@ -669,7 +669,12 @@ class MainMenu:
         print(f"[NET] Lancement du mode Multijoueur ({'HÔTE' if is_host else 'CLIENT'})")
         
         # --- 1. Handshake des choix (IA + Zone) ---
-        ipc = IPCClient()
+        # Utilisation de ports IPC differents pour permettre le test sur UN SEUL ordinateur sans conflit.
+        if is_host:
+            ipc = IPCClient(port_in=5000, port_out=5001)
+        else:
+            ipc = IPCClient(port_in=5002, port_out=5003)
+        
         my_choice = {
             "type": "setup_choice",
             "ia": self.multi_ai_choice.get_selected(),

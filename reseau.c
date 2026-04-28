@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #ifdef _WIN32
     #include <winsock2.h>
@@ -38,6 +39,7 @@ int g_remote_port_net = 6001;
 char g_remote_ip[64] = "127.0.0.1";
 int g_port_ipc_in = 5000;
 int g_port_ipc_out = 5001;
+int g_drop_rate = 0;
 int g_is_initialized = 0;
 
 /* ------------------------------------------------------------------------- */
@@ -78,6 +80,14 @@ int main(int argc, char *argv[]) {
     if (argc >= 4) g_remote_port_net = atoi(argv[3]);
     if (argc >= 5) g_port_ipc_in = atoi(argv[4]);
     if (argc >= 6) g_port_ipc_out = atoi(argv[5]);
+    
+    /* [MODIFICATION BEST-EFFORT] 
+       Ajout d'un 6ème argument pour définir un pourcentage de perte (drop rate). 
+       Idéal pour prouver au professeur le comportement "pur UDP Best-Effort" du jeu lors de la V1. */
+    if (argc >= 7) g_drop_rate = atoi(argv[6]);
+
+    /* Initialisation de la graine aléatoire pour la perte de paquets */
+    srand((unsigned int)time(NULL));
 
 #ifdef _WIN32
     WSADATA wsa;
@@ -103,6 +113,7 @@ int main(int argc, char *argv[]) {
     printf("  [IPC] Port locale   : %d (In) / %d (Out)\n", g_port_ipc_in, g_port_ipc_out);
     printf("  [NET] Ecoute P2P    : %d\n", g_local_port_net);
     printf("  [NET] Destinataire  : %s:%d\n", g_remote_ip, g_remote_port_net);
+    printf("  [NET] Simulation de perte : %d%%\n", g_drop_rate);
     printf("==================================================\n\n");
 
     struct sockaddr_in remote_addr;
@@ -141,10 +152,18 @@ int main(int argc, char *argv[]) {
             int n = recvfrom(socket_ipc, buffer, BUFFER_SIZE - 1, 0, (struct sockaddr *)&sender_addr, &sender_len);
             if (n > 0) {
                 buffer[n] = '\0';
-                printf("[IPC -> NET] Envoi vers %s:%d\n", g_remote_ip, g_remote_port_net);
-                sendto(socket_net, buffer, n, 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
                 
-                /* Confirmation au Python */
+                /* [MODIFICATION BEST-EFFORT] 
+                   On simule la perte de paquets (best-effort) en ignorant de maniere aleatoire 
+                   certains envois si le pourcentage g_drop_rate le decide. */
+                if (g_drop_rate > 0 && (rand() % 100) < g_drop_rate) {
+                    printf("[DROP] Paquet IPC -> NET ignore (perte simulee) !\n");
+                } else {
+                    printf("[IPC -> NET] Envoi vers %s:%d\n", g_remote_ip, g_remote_port_net);
+                    sendto(socket_net, buffer, n, 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
+                }
+                
+                /* Confirmation au Python (toujours envoyee pour ne pas bloquer localement) */
                 sendto(socket_ipc, ACK_MSG, (int)strlen(ACK_MSG), 0, (struct sockaddr *)&sender_addr, sender_len);
             }
         }
@@ -155,12 +174,21 @@ int main(int argc, char *argv[]) {
             int n = recvfrom(socket_net, buffer, BUFFER_SIZE - 1, 0, (struct sockaddr *)&sender_addr, &sender_len);
             if (n > 0) {
                 buffer[n] = '\0';
-                printf("[NET -> IPC] Reçu de %s:%d\n", inet_ntoa(sender_addr.sin_addr), ntohs(sender_addr.sin_port));
                 
-                /* Mise à jour dynamique de l'IP distante si on reçoit un paquet (Optionnel) */
-                /* strncpy(g_remote_ip, inet_ntoa(sender_addr.sin_addr), 63); */
-                
-                sendto(socket_ipc, buffer, n, 0, (struct sockaddr *)&local_python_addr, sizeof(local_python_addr));
+                /* [MODIFICATION BEST-EFFORT] 
+                   Meme logique pour le flux entrant: perte simulee de paquets provenant de l'hote distant. */
+                if (g_drop_rate > 0 && (rand() % 100) < g_drop_rate) {
+                    printf("[DROP] Paquet NET -> IPC perdu en route (perte simulee) !\n");
+                } else {
+                    printf("[NET -> IPC] Recu de %s:%d\n", inet_ntoa(sender_addr.sin_addr), ntohs(sender_addr.sin_port));
+                    
+                    /* Mise a jour dynamique de l'IP distante si on recoit un paquet */
+                    strncpy(g_remote_ip, inet_ntoa(sender_addr.sin_addr), 63);
+                    remote_addr.sin_port = sender_addr.sin_port; /* Mise a jour aussi du port P2P source */
+                    g_remote_port_net = ntohs(remote_addr.sin_port);
+                    
+                    sendto(socket_ipc, buffer, n, 0, (struct sockaddr *)&local_python_addr, sizeof(local_python_addr));
+                }
             }
         }
     }
