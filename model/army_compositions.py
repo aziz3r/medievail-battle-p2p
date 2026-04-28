@@ -41,34 +41,34 @@ def spawn_army_in_quadrant(game, team, zone_id):
     # Centre de la zone pour le placement relatif
     cx = (x_min + x_max) // 2
     
-    # LIGNE FRONTALE : Piquiers (4 colonnes x 40 lignes = 160 unités)
-    for c in range(cx + 1, cx + 5):
-        for r in range(y_min, y_max, 1):
+    # LIGNE FRONTALE : Piquiers (2 colonnes x 25 lignes = 50 unités)
+    for c in range(cx + 1, cx + 3):
+        for r in range(y_min + 7, y_max - 8, 1):
             game.add_unit(Pikeman(), team, row=r, col=c)
             
-    # MILIEU : Chevaliers (5 colonnes x 40 lignes = 200 unités)
-    for c in range(cx - 4, cx + 1):
-        for r in range(y_min, y_max, 1):
+    # MILIEU : Chevaliers (2 colonnes x 25 lignes = 50 unités)
+    for c in range(cx - 1, cx + 1):
+        for r in range(y_min + 7, y_max - 8, 1):
             game.add_unit(Knight(), team, row=r, col=c)
             
-    # ARRIÈRE : Arbalétriers (4 colonnes x 40 lignes = 160 unités)
-    for c in range(cx - 8, cx - 4):
-        for r in range(y_min, y_max, 1):
+    # ARRIÈRE : Arbalétriers (2 colonnes x 25 lignes = 50 unités)
+    for c in range(cx - 3, cx - 1):
+        for r in range(y_min + 7, y_max - 8, 1):
             game.add_unit(Crossbowman(), team, row=r, col=c)
             
-    print(f"[PLACEMENT] Armée {team} placée dans la Zone {zone_id} (~520 unités)")
+    print(f"[PLACEMENT] Armée {team} placée dans la Zone {zone_id} (150 unités)")
 
 def create_standard_armies(terrain_func=None):
     """
     Composition Standard (Rapide) - Bataille équilibrée
 
     Composition par équipe:
-    - 160 Pikemen (première ligne)
-    - 200 Knights (milieu)
-    - 160 Crossbowmen (arrière)
+    - 50 Pikemen (première ligne)
+    - 50 Knights (milieu)
+    - 50 Crossbowmen (arrière)
 
-    Total: ~520 unités par équipe
-    Durée: Épique (Massive)
+    Total: 150 unités par équipe
+    Durée: Moyenne
     """
     rows, cols = 120, 120
     battle_map = BattleMap(rows=rows, cols=cols, elevation_map=terrain_func)
@@ -82,37 +82,37 @@ def create_standard_armies(terrain_func=None):
     # ========== ARMÉE A (Gauche) ==========
     base_col_A = center_c - 20
 
-    # Piquiers (4 colonnes x 40 lignes = 160 unités)
-    for c in range(base_col_A + 1, base_col_A + 5):
-        for r in range(center_r - 20, center_r + 20, 1):
+    # Piquiers (2 colonnes x 25 lignes = 50 unités)
+    for c in range(base_col_A + 1, base_col_A + 3):
+        for r in range(center_r - 12, center_r + 13, 1):
             game.add_unit(Pikeman(), "A", row=r, col=c)
 
-    # Chevaliers (5 colonnes x 40 lignes = 200 unités)
-    for c in range(base_col_A - 4, base_col_A + 1):
-        for r in range(center_r - 20, center_r + 20, 1):
+    # Chevaliers (2 colonnes x 25 lignes = 50 unités)
+    for c in range(base_col_A - 1, base_col_A + 1):
+        for r in range(center_r - 12, center_r + 13, 1):
             game.add_unit(Knight(), "A", row=r, col=c)
 
-    # Arbalétriers (4 colonnes x 40 lignes = 160 unités)
-    for c in range(base_col_A - 8, base_col_A - 4):
-        for r in range(center_r - 20, center_r + 20, 1):
+    # Arbalétriers (2 colonnes x 25 lignes = 50 unités)
+    for c in range(base_col_A - 3, base_col_A - 1):
+        for r in range(center_r - 12, center_r + 13, 1):
             game.add_unit(Crossbowman(), "A", row=r, col=c)
 
     # ========== ARMÉE B (Droite) ==========
     base_col_B = center_c + 20
 
-    # Piquiers (4 colonnes x 40 lignes = 160 unités)
-    for c in range(base_col_B - 4, base_col_B):
-        for r in range(center_r - 20, center_r + 20, 1):
+    # Piquiers (2 colonnes x 25 lignes = 50 unités)
+    for c in range(base_col_B - 2, base_col_B):
+        for r in range(center_r - 12, center_r + 13, 1):
             game.add_unit(Pikeman(), "B", row=r, col=c)
 
-    # Chevaliers (5 colonnes x 40 lignes = 200 unités)
-    for c in range(base_col_B, base_col_B + 5):
-        for r in range(center_r - 20, center_r + 20, 1):
+    # Chevaliers (2 colonnes x 25 lignes = 50 unités)
+    for c in range(base_col_B, base_col_B + 2):
+        for r in range(center_r - 12, center_r + 13, 1):
             game.add_unit(Knight(), "B", row=r, col=c)
 
-    # Arbalétriers (4 colonnes x 40 lignes = 160 unités)
-    for c in range(base_col_B + 5, base_col_B + 9):
-        for r in range(center_r - 20, center_r + 20, 1):
+    # Arbalétriers (2 colonnes x 25 lignes = 50 unités)
+    for c in range(base_col_B + 2, base_col_B + 4):
+        for r in range(center_r - 12, center_r + 13, 1):
             game.add_unit(Crossbowman(), "B", row=r, col=c)
 
     print(f"[COMPOSITION] Standard : {len(game.units)} unités sur {rows}x{cols}")
@@ -351,7 +351,7 @@ def create_balanced_formation(terrain_func=None):
 # ============================================================
 
 ARMY_COMPOSITIONS = {
-    "Guerre Totale (500/équipe)": create_standard_armies,
+    "Bataille Médiane (150/équipe)": create_standard_armies,
     "Grande Bataille (105/équipe)": create_grande_bataille,
     "Cavalerie Lourde (85/équipe)": create_cavalerie_lourde,
     "Archers Massés (100/équipe)": create_archers_massed,
@@ -359,7 +359,7 @@ ARMY_COMPOSITIONS = {
 }
 
 COMPOSITION_DESCRIPTIONS = {
-    "Guerre Totale (500/équipe)": "Massif - 160 Pikemen, 200 Knights, 160 Crossbowmen",
+    "Bataille Médiane (150/équipe)": "Moyen - 50 Pikemen, 50 Knights, 50 Crossbowmen",
     "Grande Bataille (105/équipe)": "Épique - 60 Pikemen, 20 Knights, 25 Crossbowmen",
     "Cavalerie Lourde (85/équipe)": "Rush - 50 Knights, 20 Pikemen, 15 Crossbowmen",
     "Archers Massés (100/équipe)": "Distance - 60 Crossbowmen, 30 Pikemen, 10 Knights",
