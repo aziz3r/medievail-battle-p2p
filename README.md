@@ -1,103 +1,78 @@
-# MedievAIl Battle Simulator
+# Infrastructure Répartie pour Compétition d'IAs Distribuées
 
-## 📌 Présentation du Projet
-**MedievAIl Battle Simulator** est un simulateur de batailles médiévales en temps réel, conçu pour expérimenter des comportements d'intelligence artificielle (IA) tactiques et des concepts avancés de réseau pair-à-pair (P2P).
+## 📌 Introduction et Objectifs
+Ce projet implémente une **infrastructure réseau décentralisée à large échelle** permettant la compétition d'Intelligences Artificielles. Contrairement aux architectures client-serveur classiques, l'objectif est d'assurer une bataille multi-participants dans un environnement **pur Pair-à-Pair (P2P)**, sans aucun serveur central ou point de défaillance unique.
+*(Auteur original du concept : Christian Toinard)*
 
-Le projet permet à différentes armées (Chevaliers, Piquiers, Arbalétriers) de s'affronter sur des terrains variés générés dynamiquement. Il supporte un mode **Multijoueur P2P** où deux joueurs peuvent faire s'affronter leurs armées et placer dynamiquement des troupes sur le champ de bataille en concurrence sauvage.
+## 🎯 Enjeux Techniques
+L'absence de serveur central pose le défi majeur du **maintien de la cohérence de l'état distribué**. 
+L'enjeu principal réside dans l'antinomie classique des systèmes répartis : **Cohérence vs Concurrence**. Comment garantir que deux processus distants ne modifient pas la même entité simultanément de manière conflictuelle tout en maintenant des performances d'exécution hautement concurrentes ? Le projet répond à cette problématique par une séparation stricte des responsabilités et un modèle de propriété innovant.
 
-## 🎯 Objectifs
-- **Simulation Stratégique :** Développer un moteur de jeu performant où le terrain (élévation) impacte directement l'issue des combats.
-- **Multijoueur Décentralisé :** S'affranchir d'un serveur central via une architecture P2P robuste permettant la synchronisation d'état (Army Sync).
-- **Intelligence Artificielle :** Mettre en œuvre différentes IAs (agressives, défensives, prédictives) capables d'exploiter les spécificités du terrain et des compositions d'armées.
+## ⚙️ Architecture Multi-Processus
+Pour dissocier la logique applicative (l'IA) de la plomberie réseau et système, l'architecture impose une **séparation obligatoire en deux processus distincts** sur chaque machine locale :
+1. **Le Processus Réseau (C) :** Gère les connexions non bloquantes, les Sockets de bas niveau, et les threads de routage. Il est responsable de la consistance inter-noeuds.
+2. **Le Processus Applicatif / IA (Python) :** Évalue la scène, exécute les heuristiques et demande des actions.
 
-## ⚙️ Enjeux Techniques
-1. **Best-Effort Réseau (UDP) :** Le jeu accepte l'apparition d'incohérences (rubber-banding, désynchronisation mineure) lors de modifications brutales, simulant fidèlement la nature non fiable (best-effort) des réseaux sans garanties strictes de livraison ou d'ordre.
-2. **Génération par Seed (Graines) :** Génération locale et consistante des terrains infinis entre les joueurs en utilisant des graines partagées pour éviter de saturer la bande passante avec des données topographiques.
-3. **Synchronisation Inter-Processus (IPC) :** Le jeu sépare sa logique réseau (en langage C, pour des performances réseau de bas niveau et gestion asynchrone native) de la logique de simulation (en Python).
+Ces deux entités communiquent localement via des mécanismes de **Communication Inter-Processus (IPC)** (ex: sockets locaux, mémoires partagées ou files de messages) et s'appuient sur des primitives de synchronisation (Sémaphores/Mutex) pour éviter les accès concurrents locaux.
 
----
-
-## 🏗️ Architecture du Projet
-
-Le système repose sur un couplage fort entre l'application graphique (Python) et un routeur P2P (C). Ils communiquent localement via IPC (sockets UDP).
+### Schéma de Déploiement Logiciel
 
 ```mermaid
 graph TD
-    subgraph Machine A [Joueur 1]
-        PyA[Jeu Python / Moteur]
-        IPC_A[Module IPC network_ipc.py]
-        DaemonA[Daemon Routeur C - reseau.c]
-        
-        PyA <-->|Appels Locaux| IPC_A
-        IPC_A <-->|UDP Localhost 5000/5001| DaemonA
+    subgraph Machine Distante 1
+        DaemonDist1[Daemon C Distant]
+    end
+    
+    subgraph Machine Distante 2
+        DaemonDist2[Daemon C Distant]
     end
 
-    subgraph Machine B [Joueur 2]
-        PyB[Jeu Python / Moteur]
-        IPC_B[Module IPC network_ipc.py]
-        DaemonB[Daemon Routeur C - reseau.c]
+    subgraph Machine Locale
+        ProcPy[Processus Applicatif IA <br/> Python]
+        ProcC[Processus Réseau & Système <br/> C]
         
-        PyB <-->|Appels Locaux| IPC_B
-        IPC_B <-->|UDP Localhost 5000/5001| DaemonB
+        ProcPy <-->|IPC & Synchronisation locale| ProcC
     end
 
-    DaemonA <==>|Réseau UDP P2P Best-Effort| DaemonB
+    ProcC <===>|API Sockets P2P <br/> Protocoles asynchrones| DaemonDist1
+    ProcC <===>|API Sockets P2P <br/> Protocoles asynchrones| DaemonDist2
 ```
 
-## 📂 Organisation du Code Source
+## 🔒 Protocole de Cohérence Décentralisé
+Pour résoudre les conflits sans arbitre centralisé, l'architecture s'appuie sur le concept de **"Propriété Réseau" (Network Ownership) cessible**.
 
-Le code Python est architecturé selon le modèle de conception **MVC (Modèle-Vue-Présentateur/Contrôleur)**.
+Le modèle garantit l'intégrité de la scène (personnages, objets, cases) :
+- Une entité (ex: une unité sur la carte) possède un unique "propriétaire" sur le réseau P2P à un instant $t$.
+- Seul le nœud propriétaire a le droit d'altérer l'état de cette entité.
+- Si une machine distante souhaite modifier cette entité, elle doit d'abord demander le transfert de la Propriété Réseau aux pairs.
+- Une fois l'action effectuée par le propriétaire, le nouvel état est diffusé de manière **Best-effort** aux autres copies locales.
+
+### Flux d'Exécution d'une Action
 
 ```mermaid
-graph LR
-    Launch[launch.py / Main] --> Menu[view/menu.py]
-    
-    subgraph Backend
-        Model[model/]
-        Game[game.py / terrain.py / map.py]
-        Units[guerrier.py / classes d'unités]
-        Model --- Game
-        Model --- Units
-    end
-    
-    subgraph Frontend
-        View[view/]
-        GUI[views.py - Moteur de Rendu]
-        View --- GUI
-    end
-    
-    subgraph Intelligence & Réseau
-        Presenter[presenter/]
-        AIs[ai.py / smartAI.py]
-        Presenter --- AIs
-        Net[network_ipc.py & reseau.c]
-    end
+sequenceDiagram
+    participant IA as IA (Python)
+    participant CL as Daemon C (Local)
+    participant CD as Daemon C (Distant)
 
-    Menu --> View
-    Menu --> Presenter
-    Menu --> Net
-    View -.->|Affiche| Model
-    Presenter -.->|Modifie| Model
-    Net -.->|Synchronise| Model
+    Note over IA, CL: Intention d'agir sur l'Entité X
+    IA->>CL: Demande d'action sur l'Entité X
+    
+    alt Possède la Propriété Réseau
+        CL-->>IA: Autorisation immédiate
+    else Ne possède pas la Propriété Réseau
+        CL->>CD: Requête de transfert de Propriété pour X
+        Note over CD: Résolution du consensus local/distant
+        CD-->>CL: Propriété transférée (Acquittement)
+        CL-->>IA: Autorisation accordée
+    end
+    
+    IA->>CL: Exécution & Application locale de l'action
+    Note over CL, CD: Diffusion non bloquante
+    CL-)CD: Broadcast Best-effort du nouvel état
 ```
 
-### Description des Dossiers
-- **`model/`** : Cœur de la simulation (règles, entités, grille de terrain, logiques de dégâts).
-- **`view/`** : Moteur de rendu graphique développé sous *Pygame* (caméra isométrique, menus).
-- **`presenter/`** : Contrôleurs IAs (Captain Braindead, General Strategus) pilotant les armées.
-- **`reseau.c`** : Daemon réseau compilé gérant l'émission et la réception pure des datagrammes vers l'extérieur.
-- **`network_ipc.py`** : Client IPC permettant la liaison Python ↔ C.
-
----
-
-## 🚀 Comment Lancer
-
-1. **Compiler le routeur P2P (Si nécessaire) :**
-   ```bash
-   gcc reseau.c -o network_poc/p2p_node
-   ```
-2. **Lancer le jeu :**
-   ```bash
-   python launch.py
-   ```
-   *(Vous pouvez choisir de lancer des scénarios solo ou créer/rejoindre une session Multijoueur via le menu principal).*
+## 🛠️ Contexte Technique
+- **Langages de programmation :** C (Couche Système, Routage et Réseau), Python (Couche Applicative et IA).
+- **Infrastructures Systèmes :** Threads POSIX / Windows, Sémaphores, Mutex.
+- **Réseau :** API Sockets UNIX/Windows (UDP/TCP), Communication Inter-Processus (IPC).
