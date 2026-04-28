@@ -20,6 +20,7 @@ class Guerrier(ABC):
         self.reloadTime = float(reloadTime)
         self.cooldown = float(cooldown)
         self.intent = None     # mémorise le dernier ordre reçu
+        self.is_zombie = False # Flag pour le syndrome du mort-vivant (bug réseau)
         
         # Position (simple, utilisable avec la map)
         self.x = float(x)

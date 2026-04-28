@@ -394,7 +394,13 @@ class Game:
                 if target_unit:
                     # Mise à jour des points de vie (on prend le minimum pour ne jamais annuler un dégât subi)
                     if "h" in info:
-                        target_unit.hp = min(target_unit.hp, float(info["h"]))
+                        new_hp = float(info["h"])
+                        # Si l'unité était morte localement et que le réseau la ressuscite, c'est le bug du Mort-Vivant !
+                        if target_unit.hp <= 0 and new_hp > 0:
+                            target_unit.is_zombie = True
+                            
+                        # On applique aveuglément les HP du réseau (création du bug de rollback)
+                        target_unit.hp = new_hp
                         
                     # Mise à jour de la position (Seulement si ce n'est pas notre unité locale)
                     if getattr(target_unit, "team", None) != self.local_player_id:

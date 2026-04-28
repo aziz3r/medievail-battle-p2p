@@ -394,7 +394,7 @@ class GUI:
 
         dt = now - state['last_time']
 
-        if is_dead:
+        if is_dead and not getattr(unit, 'is_zombie', False):
             if state['action'] not in ['death', 'decay']:
                 state['action'] = 'death'
                 state['frame_idx'] = 0
@@ -415,7 +415,8 @@ class GUI:
                         state['action'] = 'decay'
                         state['frame_idx'] = 0
                     elif state['action'] == 'decay':
-                         state['gone'] = True
+                         if not getattr(unit, 'is_zombie', False):
+                             state['gone'] = True
 
         else:
             dx = unit.x - state['last_pos'][0]
@@ -578,9 +579,16 @@ class GUI:
                 frame = self.anim_mgr.get_frame(u_type, state['action'], state['direction'], state['frame_idx'])
                 
                 if frame:
-                    img_w = int(frame.get_width() * self.zoom)
-                    img_h = int(frame.get_height() * self.zoom)
-                    scaled_img = pygame.transform.scale(frame, (img_w, img_h))
+                    # Rendu spécifique pour les ZOMBIES RÉSEAU (Syndrome du mort-vivant)
+                    if getattr(unit, 'is_zombie', False):
+                        render_frame = frame.copy()
+                        render_frame.fill((50, 255, 50, 255), special_flags=pygame.BLEND_RGBA_MULT)
+                    else:
+                        render_frame = frame
+                        
+                    img_w = int(render_frame.get_width() * self.zoom)
+                    img_h = int(render_frame.get_height() * self.zoom)
+                    scaled_img = pygame.transform.scale(render_frame, (img_w, img_h))
 
                     # Calculer l'offset d'élévation pour effet de hauteur
                     elev = self.map.get_elevation(u_x, u_y) if self.map else 0.0
