@@ -79,8 +79,8 @@ sequenceDiagram
 
 ---
 
-## 🚀 Comment tester la V1 en local (Test des Incohérences Best-Effort)
-Afin de valider la conception "Best-Effort" (UDP sans garantie), vous pouvez simuler deux joueurs et observer la **concurrence sauvage** sur un seul ordinateur. Le routeur simule ici un réseau avec 15% de perte de paquets.
+## 🚀 Comment tester la V1 en local
+Afin de valider la conception "Best-Effort" (UDP sans garantie), vous pouvez simuler deux joueurs en concurrence sur un seul ordinateur. 
 
 Ouvrez 4 terminaux à la racine du projet :
 
@@ -89,6 +89,8 @@ Ouvrez 4 terminaux à la racine du projet :
    ```bash
    py p2p_node_mock.py 6000 127.0.0.1 6001 5000 5001 0
    ```
+   *(Note : Si vous disposez de gcc, vous pouvez aussi compiler et utiliser `./network_poc/p2p_node.exe 6000 127.0.0.1 6001 5000 5001`)*
+
 2. Lancer le jeu de l'hôte (Terminal 2) :
    ```bash
    py launch.py
@@ -106,4 +108,4 @@ Ouvrez 4 terminaux à la racine du projet :
    ```
    *(Choix 6 -> Sélectionner Zone 4 -> REJOINDRE)*
 
-Dès que la partie commence, spammez le clic gauche de votre souris des deux côtés : les 15% de perte de paquets causeront des **désynchronisations**, des **fantômes** et des **téléportations** (rubber-banding), prouvant ainsi de manière incontestable que le protocole ne bloque pas la simulation lors de modifications brutales.
+Dès que la partie commence, testez de placer des unités de chaque côté : le système fonctionnera en concurrence totale. Puisqu'il s'agit d'un réseau pur UDP sans blocage (Best-Effort), des actions brutales et simultanées pourront causer d'éventuelles désynchronisations (fantômes, rubber-banding), validant ainsi que le protocole ne bloque pas l'exécution.
