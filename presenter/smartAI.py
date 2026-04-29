@@ -18,8 +18,8 @@ class GeneralStrategus(BaseController):
         
     def decide_actions(self, game: Game) -> List[tuple[Any, ...]]:
         actions: List[tuple[Any, ...]] = []
-        my_units = game.alive_units_of_team(self.team)
-        enemies = game.enemy_units_of(self.team)
+        my_units = sorted(game.alive_units_of_team(self.team), key=lambda u: getattr(u, "uid", ""))
+        enemies = sorted(game.enemy_units_of(self.team), key=lambda u: getattr(u, "uid", ""))
         
         if not my_units or not enemies:
             return actions

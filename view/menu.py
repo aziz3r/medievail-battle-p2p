@@ -705,6 +705,16 @@ class MainMenu:
             print("[ERR] Timeout synchro lobby")
             return
 
+        # --- Résolution des collisions de zone ---
+        if my_choice["zone"] == remote_choice["zone"]:
+            print(f"[NET] Collision de zone détectée (Zone {my_choice['zone']}) !")
+            if is_host:
+                print("[NET] L'hôte conserve sa zone, le client est déplacé à l'opposé.")
+                remote_choice["zone"] = 5 - remote_choice["zone"]
+            else:
+                print("[NET] Le client est déplacé à l'opposé car l'hôte a priorité.")
+                my_choice["zone"] = 5 - my_choice["zone"]
+
         # --- 2. Initialisation du Jeu ---
         from model.map import BattleMap
         from model.game import Game
