@@ -274,6 +274,19 @@ class Game:
         if hp_before > 0.0 and hp_after <= 0.0:
             if att_team is not None and att_team != "?":
                 self.kills[att_team] = self.kills.get(att_team, 0) + 1
+            # 📡 Diffusion immédiate de la mort (sans attendre le tick de synchro)
+            if self.ipc_client is not None:
+                try:
+                    self.ipc_client.send({"t": "as", "u": {
+                        target.uid: {
+                            "tp": type(target).__name__,
+                            "x": round(target.x, 2),
+                            "y": round(target.y, 2),
+                            "h": 0.0
+                        }
+                    }})
+                except Exception:
+                    pass
 
         self.logs.append(
             f"{att_team}:{att_name} → {tgt_team}:{tgt_name} | "
