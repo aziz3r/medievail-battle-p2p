@@ -51,25 +51,41 @@ Le modèle garantit l'intégrité de la scène (personnages, objets, cases) :
 
 ```mermaid
 sequenceDiagram
-    participant IA as IA (Python)
+    participant IA as IA Python (Local)
     participant CL as Daemon C (Local)
     participant CD as Daemon C (Distant)
 
-    Note over IA, CL: Intention d'agir sur l'Entité X
-    IA->>CL: Demande d'action sur l'Entité X
-    
-    alt Possède la Propriété Réseau
-        CL-->>IA: Autorisation immédiate
-    else Ne possède pas la Propriété Réseau
-        CL->>CD: Requête de transfert de Propriété pour X
-        Note over CD: Résolution du consensus local/distant
-        CD-->>CL: Propriété transférée (Acquittement)
-        CL-->>IA: Autorisation accordée
+    Note over IA, CL: Intention d'agir sur l'Entité X (ex: Pc3)
+
+    IA->>CL: Demande d'action sur Entité X
+
+    alt Possède déjà la Propriété Réseau de X
+        CL-->>IA: Autorisation immédiate → action exécutée
+    else Ne possède pas la Propriété Réseau de X
+        Note over IA: ⏳ L'IA est bloquée en attente<br/>de la réponse IPC<br/>(pending_actions["X"] = intent)
+
+        loop [Tant que la propriété réseau de X n'est pas obtenue]
+            CL->>CD: req_own — Requête P2P : Transfert de Propriété de X
+
+            alt [CAS A] Propriété disponible : X n'est pas verrouillé
+                Note over CD: Le nœud distant possède X<br/>et n'est pas en train de l'utiliser.<br/>(X ∉ locked_units)
+                CD-->>CL: own_grant — Transfert accordé + État exact de X (HP, position)
+                Note over CL: Sortie de la boucle loop.<br/>Vérification tardive :<br/>X est-il encore vivant ? À portée ?
+                CL-->>IA: Autorisation accordée → intention validée
+
+            else [CAS B] Propriété indisponible : X est verrouillé (Duel Simultané)
+                Note over CD: X est dans locked_units :<br/>un autre attaquant calcule<br/>ses dégâts sur X en ce moment.<br/>→ deferred_req_own["X"] = paquet
+                CD-->>CL: Rejet temporaire — Propriété en cours d'utilisation
+                Note over CL: Rejet reçu. L'IA reste bloquée.<br/>La boucle recommence après un délai.<br/>(timeout anti-starvation : 1.5s max)
+            end
+        end
     end
-    
+
+    Note over CL: L'attaquant (ex: Pb1) finit son calcul.<br/>locked_units.discard("Pc3") → 🔓 Verrou levé.<br/>Si Pc3 est mort → riposte de C annulée.
+
     IA->>CL: Exécution & Application locale de l'action
-    Note over CL, CD: Diffusion non bloquante
-    CL-)CD: Broadcast Best-effort du nouvel état
+    Note over CL, CD: Diffusion non bloquante (Best-effort)
+    CL-)CD: Broadcast — Nouvel état de X (HP, position, cooldown)
 ```
 
 ## 🛠️ Contexte Technique
