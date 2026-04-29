@@ -240,58 +240,57 @@ stateDiagram-v2
     Expiré --> [*] : Nettoyage mémoire
 ```
 
+-----
+
+## 8. Commandes de demarrage (rappel)
+
+> **Aucune compilation requise.** Le routeur p2p_node_mock.py (Python pur) a exactement la meme interface et le meme comportement que 
+eseau.exe.
+
+### Sur un seul PC -- test local (6 terminaux)
+
+\\ash
+# Terminal 1 -- Routeur A
+py p2p_node_mock.py 6000 A 5000 5001 127.0.0.1:6001 127.0.0.1:6002
+
+# Terminal 2 -- Jeu A
+py launch.py   # -> 6 -> MODE 3 JOUEURS -> Joueur A -> CREER
+
+# Terminal 3 -- Routeur B
+py p2p_node_mock.py 6001 B 5002 5003 127.0.0.1:6000 127.0.0.1:6002
+
+# Terminal 4 -- Jeu B
+py launch.py   # -> 6 -> MODE 3 JOUEURS -> Joueur B -> CREER
+
+# Terminal 5 -- Routeur C
+py p2p_node_mock.py 6002 C 5004 5005 127.0.0.1:6000 127.0.0.1:6001
+
+# Terminal 6 -- Jeu C
+py launch.py   # -> 6 -> MODE 3 JOUEURS -> Joueur C -> CREER
+\
+### Sur 3 PCs differents (reseau LAN)
+
+\\ash
+# Sur PC_A (IP: 192.168.1.10)
+py p2p_node_mock.py 6000 A 5000 5001 192.168.1.20:6001 192.168.1.30:6002
+
+# Sur PC_B (IP: 192.168.1.20)
+py p2p_node_mock.py 6001 B 5002 5003 192.168.1.10:6000 192.168.1.30:6002
+
+# Sur PC_C (IP: 192.168.1.30)
+py p2p_node_mock.py 6002 C 5004 5005 192.168.1.10:6000 192.168.1.20:6001
+\
+> Astuce bootstrap : Meme si C ne connait pas B au demarrage, donnez uniquement A en pair initial -- A transmettra automatiquement la liste complete via HELLO_ACK.
+
 ---
 
-## 8. Commandes de démarrage (rappel)
+## 9. Format des messages reseau (JSON)
 
-### Sur un seul PC (test local)
-
-```bash
-# Terminal 1 — Routeur A
-.\reseau.exe 6000 A 5000 5001 127.0.0.1:6001 127.0.0.1:6002
-
-# Terminal 2 — Jeu A
-py launch.py   # → 6 → MODE 3 JOUEURS → Joueur A → CRÉER
-
-# Terminal 3 — Routeur B
-.\reseau.exe 6001 B 5002 5003 127.0.0.1:6000 127.0.0.1:6002
-
-# Terminal 4 — Jeu B
-py launch.py   # → 6 → MODE 3 JOUEURS → Joueur B → CRÉER
-
-# Terminal 5 — Routeur C
-.\reseau.exe 6002 C 5004 5005 127.0.0.1:6000 127.0.0.1:6001
-
-# Terminal 6 — Jeu C
-py launch.py   # → 6 → MODE 3 JOUEURS → Joueur C → CRÉER
-```
-
-### Sur 3 PCs différents (réseau LAN)
-
-Remplacez `127.0.0.1` par les vraies adresses IP des autres machines :
-
-```bash
-# Sur PC_A (IP: 192.168.1.10) — Routeur A
-.\reseau.exe 6000 A 5000 5001 192.168.1.20:6001 192.168.1.30:6002
-
-# Sur PC_B (IP: 192.168.1.20) — Routeur B
-.\reseau.exe 6001 B 5002 5003 192.168.1.10:6000 192.168.1.30:6002
-
-# Sur PC_C (IP: 192.168.1.30) — Routeur C
-.\reseau.exe 6002 C 5004 5005 192.168.1.10:6000 192.168.1.20:6001
-```
-
-> **Note :** Même si vous ne connaissez pas l'IP de C au démarrage, A peut servir de **bootstrap** : donnez uniquement A en pair initial, et A transmettra automatiquement la liste complète via HELLO_ACK.
-
----
-
-## 9. Format des messages réseau (JSON)
-
-| Type | Direction | Contenu | Usage |
-|------|-----------|---------|-------|
-| `HELLO` | C → C | `{type, pid, port}` | Annonce sa présence |
-| `HELLO_ACK` | C → C | `{type, from, peers:[...]}` | Répond avec la liste des pairs |
-| `setup_choice_3p` | Python → Python | `{type, pid, ia}` | Synchronisation du lobby |
-| `as` (army_sync) | Python → Python | `{type, pid, u:{uid:{x,y,hp,cd}}}` | État des unités en temps réel |
-| `req_own` | Python → Python | `{type, uid, from}` | Demande de propriété d'une unité |
-| `ack` | C → Python | `{type, status}` | Accusé de réception IPC interne |
+| Type              | Direction          | Contenu                            | Usage                           |
+|-------------------|--------------------|------------------------------------|---------------------------------|
+| HELLO             | Routeur -> Routeur | {type, pid, port}                  | Annonce sa presence             |
+| HELLO_ACK         | Routeur -> Routeur | {type, from, peers:[...]}          | Repond avec la liste des pairs  |
+| setup_choice_3p   | Python  -> Python  | {type, pid, ia}                    | Synchronisation du lobby        |
+| as (army_sync)    | Python  -> Python  | {type, pid, u:{uid:{x,y,hp,cd}}}   | Etat des unites en temps reel   |
+| req_own           | Python  -> Python  | {type, uid, from}                  | Demande de propriete d une u.   |
+| ack               | Routeur -> Python  | {type, status}                     | Accuse reception IPC interne    |

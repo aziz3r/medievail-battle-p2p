@@ -108,127 +108,114 @@ Ouvrez 4 terminaux à la racine du projet :
    ```
    *(Choix 6 -> Sélectionner Zone 4 -> REJOINDRE)*
 
-Dès que la partie commence, testez de placer des unités de chaque côté : le système fonctionnera en concurrence totale. Puisqu'il s'agit d'un réseau pur UDP sans blocage (Best-Effort), des actions brutales et simultanées pourront causer d'éventuelles désynchronisations (fantômes, rubber-banding), validant ainsi que le protocole ne bloque pas l'exécution.
+Dès que la partie commence, testez de placer des unités de chaque côté : le système fonctionnera en concurrence totale. Puisqu'il s'agit d'un réseau pur UDP sans blocage (Best-Effort), des actions brutales et simultanées pourront causer d'éventuelles désynchronisations (fantômes, rubber-banding), validant ainsi que le protocole ne bloque pas l'exécutio---
+
+## 🚀 Comment tester la Version 2 (P2P Synchronise -- 2 Joueurs)
+
+Ouvrez **4 terminaux** a la racine du projet et lancez les commandes dans cet ordre.
+
+> **Aucune compilation requise** -- p2p_node_mock.py est le routeur Python pur, pret a l emploi.
+> Si vous preferez le routeur C compile (performances), remplacez py p2p_node_mock.py par .\reseau.exe -- meme syntaxe exacte.
 
 ---
 
-## 🚀 Comment tester la Version 2 (P2P Synchronisé — 2 Joueurs)
+**Terminal 1 -- Routeur Joueur A (Hote)**
+`ash
+py p2p_node_mock.py 6000 A 5000 5001 127.0.0.1:6001
+`
 
-Ouvrez **4 terminaux** à la racine du projet et lancez les commandes dans cet ordre :
-
-> **Prérequis :** Compilez le routeur C une fois avec :
-> ```bash
-> gcc -o reseau.exe reseau.c -lws2_32
-> ```
-> Si vous n'avez pas `gcc`, utilisez le fallback Python `p2p_node_mock.py` (voir ci-dessous).
-
----
-
-**Terminal 1 — Routeur réseau Joueur A (Hôte)**
-```bash
-.\reseau.exe 6000 A 5000 5001 127.0.0.1:6001
-```
-*Fallback Python (sans gcc) :*
-```bash
-py p2p_node_mock.py 6000 127.0.0.1 6001 5000 5001
-```
-
-**Terminal 2 — Jeu Joueur A**
-```bash
+**Terminal 2 -- Jeu Joueur A**
+`ash
 py launch.py
-```
-*(Dans le menu : Multijoueur P2P → Choisir une Zone → **CRÉER**)*
+`
+*(Dans le menu : 6 -> Multijoueur P2P -> Choisir une Zone -> **CREER**)*
 
 ---
 
-**Terminal 3 — Routeur réseau Joueur B (Client)**
-```bash
-.\reseau.exe 6001 B 5002 5003 127.0.0.1:6000
-```
-*Fallback Python (sans gcc) :*
-```bash
-py p2p_node_mock.py 6001 127.0.0.1 6000 5002 5003
-```
+**Terminal 3 -- Routeur Joueur B (Client)**
+`ash
+py p2p_node_mock.py 6001 B 5002 5003 127.0.0.1:6000
+`
 
-**Terminal 4 — Jeu Joueur B**
-```bash
+**Terminal 4 -- Jeu Joueur B**
+`ash
 py launch.py
-```
-*(Dans le menu : Multijoueur P2P → Choisir une Zone → **REJOINDRE**)*
+`
+*(Dans le menu : 6 -> Multijoueur P2P -> Choisir une Zone -> **REJOINDRE**)*
 
-> **Note :** Si les deux joueurs choisissent la même zone, le système de collision la résout automatiquement en déplaçant le client à la zone opposée.
-
----
-
-## 🚀 Comment tester la Version 3 (P2P Multi — 3 Joueurs)
-
-La V3 supporte **N joueurs simultanés** grâce à la table de pairs dynamique (`g_peers[]`) et au protocole de découverte HELLO/HELLO_ACK intégré dans `reseau.exe`.
-
-Ouvrez **6 terminaux** à la racine du projet :
-
-> **Prérequis :** Même compilation que ci-dessus.
+> **Note :** Si les deux joueurs choisissent la meme zone, le systeme de collision la resout automatiquement.
 
 ---
 
-**Terminal 1 — Routeur Joueur A**
-```bash
-.\reseau.exe 6000 A 5000 5001 127.0.0.1:6001 127.0.0.1:6002
-```
+## 🚀 Comment tester la Version 3 (P2P Multi -- 3 Joueurs)
 
-**Terminal 2 — Jeu Joueur A**
-```bash
+La V3 supporte **3 joueurs simultanes**. Ouvrez **6 terminaux** -- **aucune compilation requise**.
+
+---
+
+**Terminal 1 -- Routeur Joueur A**
+`ash
+py p2p_node_mock.py 6000 A 5000 5001 127.0.0.1:6001 127.0.0.1:6002
+`
+
+**Terminal 2 -- Jeu Joueur A**
+`ash
 py launch.py
-```
-*(Multijoueur P2P → **MODE 3 JOUEURS** → Identifiant **Joueur A** → **CRÉER**)*
+`
+*(Menu : 6 -> **MODE 3 JOUEURS** -> Identifiant **Joueur A** -> **CREER**)*
 
 ---
 
-**Terminal 3 — Routeur Joueur B**
-```bash
-.\reseau.exe 6001 B 5002 5003 127.0.0.1:6000 127.0.0.1:6002
-```
+**Terminal 3 -- Routeur Joueur B**
+`ash
+py p2p_node_mock.py 6001 B 5002 5003 127.0.0.1:6000 127.0.0.1:6002
+`
 
-**Terminal 4 — Jeu Joueur B**
-```bash
+**Terminal 4 -- Jeu Joueur B**
+`ash
 py launch.py
-```
-*(Multijoueur P2P → **MODE 3 JOUEURS** → Identifiant **Joueur B** → **CRÉER**)*
+`
+*(Menu : 6 -> **MODE 3 JOUEURS** -> Identifiant **Joueur B** -> **CREER**)*
 
 ---
 
-**Terminal 5 — Routeur Joueur C**
-```bash
-.\reseau.exe 6002 C 5004 5005 127.0.0.1:6000 127.0.0.1:6001
-```
+**Terminal 5 -- Routeur Joueur C**
+`ash
+py p2p_node_mock.py 6002 C 5004 5005 127.0.0.1:6000 127.0.0.1:6001
+`
 
-**Terminal 6 — Jeu Joueur C**
-```bash
+**Terminal 6 -- Jeu Joueur C**
+`ash
 py launch.py
-```
-*(Multijoueur P2P → **MODE 3 JOUEURS** → Identifiant **Joueur C** → **CRÉER**)*
+`
+*(Menu : 6 -> **MODE 3 JOUEURS** -> Identifiant **Joueur C** -> **CREER**)*
 
 ---
 
-### Déploiement des armées (V3)
+### Deploiement des armees (V3)
 
-| Joueur | Zone de départ | Couleur |
+| Joueur | Zone de depart | Couleur |
 |--------|----------------|---------|
-| A      | Nord-Ouest     | 🔵 Bleu  |
-| B      | Nord-Est       | 🔴 Rouge |
-| C      | Sud-Centre     | 🟢 Vert  |
+| A      | Nord-Ouest     | Bleu    |
+| B      | Nord-Est       | Rouge   |
+| C      | Sud-Centre     | Vert    |
 
-La partie démarre automatiquement dès que les 3 joueurs ont échangé leurs choix via le handshake réseau (`setup_choice_3p`). Le premier joueur à éliminer les deux autres armées remporte la bataille.
+La partie demarre automatiquement des que les 3 joueurs ont echange leurs choix. Le premier joueur a eliminer les deux autres armees remporte la bataille.
 
-### Syntaxe complète de `reseau.exe`
+### Syntaxe du routeur
 
-```
-reseau.exe <port_net> <player_id> <ipc_in> <ipc_out> [peer1_ip:port] [peer2_ip:port] ...
-```
+Les deux routeurs (p2p_node_mock.py et 
+eseau.exe) acceptent la meme syntaxe :
 
-| Argument       | Description                                      | Exemple        |
-|----------------|--------------------------------------------------|----------------|
-| `port_net`     | Port UDP réseau P2P de ce nœud                   | `6000`         |
-| `player_id`    | Identifiant de ce joueur (`A`, `B`, `C`…)        | `A`            |
-| `ipc_in`       | Port d'écoute des messages depuis Python         | `5000`         |
-| `ipc_out`      | Port de renvoi vers Python                       | `5001`         |
-| `peerN_ip:port`| Pairs initiaux connus (découverte automatique)   | `127.0.0.1:6001` |
+`
+py p2p_node_mock.py <port_net> <player_id> <ipc_in> <ipc_out> [ip:port ...]
+.\reseau.exe        <port_net> <player_id> <ipc_in> <ipc_out> [ip:port ...]
+`
+
+| Argument    | Description                              | Exemple          |
+|-------------|------------------------------------------|------------------|
+| port_net  | Port UDP reseau P2P de ce noeud          | 6000           |
+| player_id | Identifiant du joueur (A, B, C...)       | A              |
+| ipc_in    | Port ecoute messages depuis Python       | 5000           |
+| ipc_out   | Port renvoi vers Python                  | 5001           |
+| ip:port   | Pairs initiaux (autant que necessaire)   | 127.0.0.1:6001 |
