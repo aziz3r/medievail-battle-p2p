@@ -27,6 +27,15 @@ QUADRANT_BOUNDS = {
     2: (70, 110, 10, 50),   # Top-Right
     3: (10, 50, 70, 110),   # Bottom-Left
     4: (70, 110, 70, 110),  # Bottom-Right
+    5: (40, 80,  40, 80),   # Centre
+}
+
+# --- Zones pour les parties à 3 joueurs ---
+# A = Nord-Ouest, B = Nord-Est, C = Sud-Centre
+TRIO_ZONE_BOUNDS = {
+    "A": (5,  45, 5,  40),   # Nord-Ouest
+    "B": (75, 115, 5,  40),  # Nord-Est
+    "C": (35, 85,  80, 115), # Sud-Centre
 }
 
 def spawn_army_in_quadrant(game, team, zone_id):
@@ -57,6 +66,40 @@ def spawn_army_in_quadrant(game, team, zone_id):
             game.add_unit(Crossbowman(), team, row=r, col=c)
             
     print(f"[PLACEMENT] Armée {team} placée dans la Zone {zone_id} (150 unités)")
+
+def spawn_army_trio(game, team: str):
+    """
+    Place une armée dans la zone prédéfinie pour les parties à 3 joueurs.
+    team doit être 'A', 'B', ou 'C'.
+    Utilise TRIO_ZONE_BOUNDS pour déterminer la zone de déploiement.
+    """
+    if team not in TRIO_ZONE_BOUNDS:
+        print(f"[PLACEMENT] ⚠️  Team '{team}' hors des zones trio. Fallback zone A.")
+        team_key = "A"
+    else:
+        team_key = team
+
+    x_min, x_max, y_min, y_max = TRIO_ZONE_BOUNDS[team_key]
+    cx = (x_min + x_max) // 2
+
+    # LIGNE FRONTALE : Piquiers
+    for c in range(cx + 1, min(cx + 4, x_max)):
+        for r in range(y_min + 3, y_max - 3, 2):
+            game.add_unit(Pikeman(), team, row=r, col=c)
+
+    # MILIEU : Chevaliers
+    for c in range(cx - 1, cx + 1):
+        for r in range(y_min + 5, y_max - 5, 2):
+            game.add_unit(Knight(), team, row=r, col=c)
+
+    # ARRIÈRE : Arbalétriers
+    for c in range(max(cx - 4, x_min), cx - 1):
+        for r in range(y_min + 3, y_max - 3, 2):
+            game.add_unit(Crossbowman(), team, row=r, col=c)
+
+    print(f"[PLACEMENT] Armee {team} placee dans la zone trio '{team_key}' "
+          f"({x_min}<=x<={x_max}, {y_min}<=y<={y_max})")
+
 
 def create_standard_armies(terrain_func=None):
     """

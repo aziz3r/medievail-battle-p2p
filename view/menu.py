@@ -16,8 +16,9 @@ from model.scenarios import (
     scenario_deux_camps_eleves,
     scenario_siege_chateau,
     scenario_wonder_duel,
+    scenario_trois_camps,
 )
-from model.army_compositions import ARMY_COMPOSITIONS, COMPOSITION_DESCRIPTIONS
+from model.army_compositions import ARMY_COMPOSITIONS, COMPOSITION_DESCRIPTIONS, spawn_army_trio
 from model.terrain import TERRAIN_TYPES
 from presenter.ai import CaptainBraindead, MajorDaft
 from .views import GUI
@@ -50,6 +51,13 @@ AVAILABLE_SCENARIOS = {
 AI_DESCRIPTIONS = {
     "Captain BRAINDEAD": "Statique - N'attaque que si ennemi en vue",
     "Major DAFT": "Agressive - Attaque le plus proche",
+}
+
+# Couleurs des 3 équipes (utilisées dans le lobby et la GUI)
+TEAM_COLORS = {
+    "A": (80,  120, 220),   # Bleu
+    "B": (220,  60,  60),   # Rouge
+    "C": (60,  180,  80),   # Vert
 }
 
 
@@ -225,22 +233,37 @@ class MainMenu:
 
         # --- Nouveaux contrôles Lobby Multijoueur ---
         self.multi_ai_choice = DropdownMenu(0, 0, 400, 40, list(AVAILABLE_AIS.keys()), self.font_small, default=1)
-        self.multi_zone_choice = 0 # 0 = Non choisi, 1-4 = Quadrant
+        self.multi_zone_choice = 0  # 0 = Non choisi, 1-4 = Quadrant
         self.btn_zone1 = Button(0, 0, 100, 100, "Zone 1", self.font_small)
         self.btn_zone2 = Button(0, 0, 100, 100, "Zone 2", self.font_small)
         self.btn_zone3 = Button(0, 0, 100, 100, "Zone 3", self.font_small)
         self.btn_zone4 = Button(0, 0, 100, 100, "Zone 4", self.font_small)
-        self.multi_remote_ready = False
-        self.multi_remote_choice = None # { "ia": ..., "zone": ... }
+        self.multi_remote_ready  = False
+        self.multi_remote_choice = None
+
+        # --- Contrôles MODE 3 JOUEURS ---
+        self.multi_mode3 = False   # True = mode 3 joueurs actif
+        self.btn_mode3   = Button(0, 0, 220, 44, "MODE 3 JOUEURS", self.font_small)
+        # Sélection du player_id (A / B / C)
+        self.multi_player_id_choice = DropdownMenu(0, 0, 200, 40,
+                                                   ["Joueur A", "Joueur B", "Joueur C"],
+                                                   self.font_small, default=0)
+        # Champs IP des pairs (mode 3 joueurs — test local ou LAN)
+        # En mode local les ports sont fixés : A=6000, B=6001, C=6002
+        self.multi_peer1_ip = "127.0.0.1"   # IP du pair 1
+        self.multi_peer2_ip = "127.0.0.1"   # IP du pair 2 (3ème joueur uniquement)
+        self.multi_peer1_active = False      # Pair 1 reçu/confirmé
+        self.multi_peer2_active = False      # Pair 2 reçu/confirmé
+
         try:
              p_img = pygame.image.load("assets/Pointer/attack48x48 (Copy).webp").convert_alpha()
              self.pointer_img = pygame.transform.scale(p_img, (32, 32))
         except Exception as e:
              print(f"Menu Pointer Error: {e}")
              self.pointer_img = None
-        
+
         pygame.mouse.set_visible(False)
-        
+
         self.recalc_layout()
 
     def recalc_layout(self):
@@ -267,7 +290,8 @@ class MainMenu:
         self.btn_zone1.rect.center = (cx - z_gap/2 - 20, 320)
         self.btn_zone2.rect.center = (cx + z_gap/2 + 20, 320)
         self.btn_zone3.rect.center = (cx - z_gap/2 - 20, 430)
-        self.btn_zone4.rect.center = (cx + z_gap/2 + 20, 430); self.setup_ai_a.rect.x = cx - 275
+        self.btn_zone4.rect.center = (cx + z_gap/2 + 20, 430)
+        self.setup_ai_a.rect.x = cx - 275
         self.setup_ai_b.rect.center = (cx, 240); self.setup_ai_b.rect.x = cx - 275
         self.setup_composition.rect.center = (cx, 330); self.setup_composition.rect.x = cx - 275
         self.setup_terrain.rect.center = (cx, 410); self.setup_terrain.rect.x = cx - 275
@@ -277,6 +301,10 @@ class MainMenu:
 
         self.btn_start.rect.center = (cx, 500)
         self.btn_back.rect.topleft = (20, 20)
+
+        # Contrôles mode 3 joueurs
+        self.btn_mode3.rect.center             = (cx + 160, self.h - 80)
+        self.multi_player_id_choice.rect.center = (cx, 240)
 
         self.opt_speed.rect.center = (cx, 200); self.opt_speed.rect.x = cx - 275
         self.chk_rect.topleft = (cx - 50, 280)
@@ -604,81 +632,138 @@ class MainMenu:
 
     def draw_multi_setup_screen(self):
         cx, cy = self.w // 2, self.h // 2
-        title = self.font_button.render("LOBBY MULTIJOUEUR (P2P)", True, ACCENT_COLOR)
+        mode3 = self.multi_mode3
+
+        # Titre
+        mode_txt = "3 JOUEURS" if mode3 else "2 JOUEURS"
+        title = self.font_button.render(f"LOBBY MULTIJOUEUR P2P — {mode_txt}", True, ACCENT_COLOR)
         title_rect = title.get_rect(center=(cx, 50))
         self.screen.blit(title, title_rect)
 
         # 1. Sélection de l'IA
         ai_label = self.font_small.render("VOTRE IA COMBATTANTE :", True, TEXT_COLOR)
         self.screen.blit(ai_label, (cx - 200, 130))
-        
-        # 2. Sélection de la Zone
-        zone_label = self.font_small.render("VOTRE ZONE DE DÉPLOIEMENT :", True, TEXT_COLOR)
-        self.screen.blit(zone_label, (cx - 200, 240))
-        
-        # Dessin des boutons de zone (couleur différente si sélectionné)
-        for i, btn in enumerate([self.btn_zone1, self.btn_zone2, self.btn_zone3, self.btn_zone4], 1):
-            btn.active = (self.multi_zone_choice == i)
-            btn.draw(self.screen)
-        
-        # 3. État de l'adversaire
-        remote_st = "EN ATTENTE..." if not self.multi_remote_ready else "PRÊT !"
-        remote_col = (200, 200, 0) if not self.multi_remote_ready else (0, 255, 0)
-        remote_label = self.font_small.render(f"ADVERSAIRE : {remote_st}", True, remote_col)
-        self.screen.blit(remote_label, (cx - 100, 500))
 
-        # Boutons d'action
-        self.btn_host.draw(self.screen)
-        self.btn_join.draw(self.screen)
+        # 2. Sélection du joueur (A/B/C) — toujours visible
+        pid_label = self.font_small.render("VOTRE IDENTIFIANT (A / B / C) :", True, TEXT_COLOR)
+        self.screen.blit(pid_label, (cx - 200, 210))
+
+        # 3. Zones de déploiement (mode 2 joueurs seulement)
+        if not mode3:
+            zone_label = self.font_small.render("VOTRE ZONE DE DÉPLOIEMENT :", True, TEXT_COLOR)
+            self.screen.blit(zone_label, (cx - 200, 290))
+            for i, btn in enumerate([self.btn_zone1, self.btn_zone2,
+                                      self.btn_zone3, self.btn_zone4], 1):
+                btn.active = (self.multi_zone_choice == i)
+                btn.draw(self.screen)
+
+        # 4. État des adversaires (mode 3 joueurs)
+        if mode3:
+            team_labels = {
+                "A": ("Nord-Ouest", TEAM_COLORS.get("A", TEXT_COLOR)),
+                "B": ("Nord-Est",   TEAM_COLORS.get("B", TEXT_COLOR)),
+                "C": ("Sud-Centre", TEAM_COLORS.get("C", TEXT_COLOR)),
+            }
+            pid = self._get_selected_player_id()
+            info_y = 310
+            for tid, (zone_name, col) in team_labels.items():
+                marker = " ← VOUS" if tid == pid else ""
+                line = self.font_small.render(
+                    f"  Équipe {tid}  ({zone_name}){marker}", True, col)
+                self.screen.blit(line, (cx - 150, info_y))
+                info_y += 28
+
+            # Statut des pairs
+            p1_col = (0, 220, 80) if self.multi_peer1_active else (200, 200, 0)
+            p2_col = (0, 220, 80) if self.multi_peer2_active else (200, 200, 0)
+            p1_txt = "CONNECTÉ" if self.multi_peer1_active else "EN ATTENTE..."
+            p2_txt = "CONNECTÉ" if self.multi_peer2_active else "EN ATTENTE..."
+            self.screen.blit(self.font_small.render(f"Pair 1 : {p1_txt}", True, p1_col),
+                             (cx - 150, 430))
+            self.screen.blit(self.font_small.render(f"Pair 2 : {p2_txt}", True, p2_col),
+                             (cx - 150, 458))
+        else:
+            remote_st  = "EN ATTENTE..." if not self.multi_remote_ready else "PRÊT !"
+            remote_col = (200, 200, 0)    if not self.multi_remote_ready else (0, 255, 0)
+            remote_label = self.font_small.render(f"ADVERSAIRE : {remote_st}", True, remote_col)
+            self.screen.blit(remote_label, (cx - 100, 500))
+
+        # Boutons d'action (en bas)
+        self.btn_host.draw(self.screen)    # "CRÉER (HÔTE)" en mode 2j
+        self.btn_join.draw(self.screen)    # "REJOINDRE"   en mode 2j
+        self.btn_mode3.active = mode3
+        self.btn_mode3.draw(self.screen)   # Toggle mode 3j
         self.btn_back.draw(self.screen)
-        
-        # Dropdown en dernier pour être au-dessus
+
+        # Dropdowns en dernier (au-dessus de tout)
+        self.multi_player_id_choice.draw(self.screen)
         self.multi_ai_choice.draw(self.screen)
+
+    def _get_selected_player_id(self) -> str:
+        """Retourne le player_id sélectionné ('A', 'B', ou 'C')."""
+        idx = self.multi_player_id_choice.selected_index
+        return ["A", "B", "C"][min(idx, 2)]
 
     def handle_events_multi_setup(self, event, mouse_pos):
         self.btn_back.update(mouse_pos)
         self.btn_host.update(mouse_pos)
         self.btn_join.update(mouse_pos)
+        self.btn_mode3.update(mouse_pos)
         self.btn_zone1.update(mouse_pos)
         self.btn_zone2.update(mouse_pos)
         self.btn_zone3.update(mouse_pos)
         self.btn_zone4.update(mouse_pos)
-        
+
         if self.multi_ai_choice.handle_event(event, mouse_pos):
+            return
+        if self.multi_player_id_choice.handle_event(event, mouse_pos):
             return
 
         if self.btn_back.is_clicked(event):
             self.state = "main"
-        elif self.btn_zone1.is_clicked(event): self.multi_zone_choice = 1
-        elif self.btn_zone2.is_clicked(event): self.multi_zone_choice = 2
-        elif self.btn_zone3.is_clicked(event): self.multi_zone_choice = 3
-        elif self.btn_zone4.is_clicked(event): self.multi_zone_choice = 4
+        elif self.btn_mode3.is_clicked(event):
+            self.multi_mode3 = not self.multi_mode3
+            self.btn_mode3.text = ("MODE 3 JOUEURS ✔" if self.multi_mode3
+                                   else "MODE 3 JOUEURS")
+        elif self.btn_zone1.is_clicked(event):
+            self.multi_zone_choice = 1
+        elif self.btn_zone2.is_clicked(event):
+            self.multi_zone_choice = 2
+        elif self.btn_zone3.is_clicked(event):
+            self.multi_zone_choice = 3
+        elif self.btn_zone4.is_clicked(event):
+            self.multi_zone_choice = 4
         elif self.btn_host.is_clicked(event):
-            if self.multi_zone_choice > 0: self.launch_multiplayer(is_host=True)
+            if self.multi_mode3:
+                self.launch_multiplayer_3p()
+            elif self.multi_zone_choice > 0:
+                self.launch_multiplayer(is_host=True)
         elif self.btn_join.is_clicked(event):
-            if self.multi_zone_choice > 0: self.launch_multiplayer(is_host=False)
+            if self.multi_mode3:
+                self.launch_multiplayer_3p()
+            elif self.multi_zone_choice > 0:
+                self.launch_multiplayer(is_host=False)
 
     def launch_multiplayer(self, is_host: bool):
-        print(f"[NET] Lancement du mode Multijoueur ({'HÔTE' if is_host else 'CLIENT'})")
-        
-        # --- 1. Handshake des choix (IA + Zone) ---
-        # Utilisation de ports IPC differents pour permettre le test sur UN SEUL ordinateur sans conflit.
+        """Lance une partie 2 joueurs P2P (comportement original)."""
+        print(f"[NET] Lancement du mode Multijoueur 2J ({'HÔTE' if is_host else 'CLIENT'})")
+
+        # Ports IPC fixes pour test local sans conflit
         if is_host:
-            ipc = IPCClient(port_in=5000, port_out=5001)
+            ipc = IPCClient(port_in=5000, port_out=5001, player_id="A")
         else:
-            ipc = IPCClient(port_in=5002, port_out=5003)
-        
+            ipc = IPCClient(port_in=5002, port_out=5003, player_id="B")
+
         my_choice = {
             "type": "setup_choice",
-            "ia": self.multi_ai_choice.get_selected(),
+            "ia":   self.multi_ai_choice.get_selected(),
             "zone": self.multi_zone_choice
         }
-        
-        import json
+
         import time
-        timeout = time.time() + 10 # 10s pour synchroniser
+        timeout = time.time() + 10
         remote_choice = None
-        
+
         print("[NET] Envoi des choix au partenaire...")
         while time.time() < timeout:
             ipc.send(my_choice)
@@ -688,48 +773,38 @@ class MainMenu:
                 print(f"[NET] Choix de l'adversaire reçus : {remote_choice}")
                 break
             time.sleep(0.5)
-            # On dessine un petit texte d'attente
             self.screen.fill(BG_COLOR)
             txt = self.font_small.render("SYNCHRONISATION AVEC L'ADVERSAIRE...", True, ACCENT_COLOR)
-            self.screen.blit(txt, (self.w//2 - 150, self.h//2))
+            self.screen.blit(txt, (self.w // 2 - 150, self.h // 2))
             pygame.display.flip()
 
         if not remote_choice:
-            print("[ERR] Timeout synchro lobby")
+            print("[ERR] Timeout synchro lobby 2J")
             return
 
-        # --- Résolution des collisions de zone ---
+        # Résolution des collisions de zone
         if my_choice["zone"] == remote_choice["zone"]:
-            print(f"[NET] Collision de zone détectée (Zone {my_choice['zone']}) !")
             if is_host:
-                print("[NET] L'hôte conserve sa zone, le client est déplacé à l'opposé.")
                 remote_choice["zone"] = 5 - remote_choice["zone"]
             else:
-                print("[NET] Le client est déplacé à l'opposé car l'hôte a priorité.")
                 my_choice["zone"] = 5 - my_choice["zone"]
 
-        # --- 2. Initialisation du Jeu ---
         from model.map import BattleMap
         from model.game import Game
         from model.army_compositions import spawn_army_in_quadrant
-        
+
+        local_id  = "A" if is_host else "B"
+        remote_id = "B" if is_host else "A"
+
         game = Game(BattleMap(120, 120), {}, ipc_client=ipc)
-        game.local_player_id = "A" if is_host else "B"
-        remote_player_id = "B" if is_host else "A"
-        
-        # Attribution des IAs
+        game.local_player_id = local_id
+
         my_ai_cls = AVAILABLE_AIS[my_choice["ia"]]
-        rem_ai_cls = AVAILABLE_AIS[remote_choice["ia"]]
-        
-        game.controllers = {
-            game.local_player_id: my_ai_cls(game.local_player_id)
-        }
-        
-        # Spawning des armées
-        spawn_army_in_quadrant(game, game.local_player_id, my_choice["zone"])
-        spawn_army_in_quadrant(game, remote_player_id, remote_choice["zone"])
-        
-        # On saute la phase de placement manuel puisqu'on a choisi nos zones
+        game.controllers = {local_id: my_ai_cls(local_id)}
+
+        spawn_army_in_quadrant(game, local_id,  my_choice["zone"])
+        spawn_army_in_quadrant(game, remote_id, remote_choice["zone"])
+
         self.start_battle_window(game, is_multi=True)
         self.state = "main"
 
@@ -739,44 +814,41 @@ class MainMenu:
         gui = GUI(game, w, h)
         pygame.mouse.set_visible(False)
 
-        auto_play = False if is_multi else self.opt_auto_play
-        is_placing = is_multi # On commence par le placement en multi
+        auto_play  = False if is_multi else self.opt_auto_play
+        is_placing = is_multi  # On commence par le placement en multi
         battle_running = True
         clock = pygame.time.Clock()
-        
-        # ... (reste des logs de contrôles existants) ...
-        if is_multi:
-             print("[PLACEMENT] Cliquez pour placer vos unités. Appuyez sur [ENTRÉE] pour démarrer.")
 
-        fps_values = [10, 30, 60, 120]
+        if is_multi:
+            print("[PLACEMENT] Cliquez pour placer vos unités. Appuyez sur [ENTRÉE] pour démarrer.")
+
+        fps_values     = [10, 30, 60, 120]
         selected_index = self.opt_speed.selected_index
-        target_fps = fps_values[selected_index] if 0 <= selected_index < len(fps_values) else 30
+        target_fps     = fps_values[selected_index] if 0 <= selected_index < len(fps_values) else 30
 
         while battle_running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     battle_running = False
-                    self.running = False
+                    self.running   = False
 
                 elif event.type == pygame.VIDEORESIZE:
-                    # ... gestion resize ...
                     self.screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
                     w, h = event.w, event.h
 
                 if is_placing:
                     if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                        # Placement local
                         mx, my = pygame.mouse.get_pos()
                         row, col = gui.iso_to_grid(mx, my)
                         if 0 <= row < game.map.rows and 0 <= col < game.map.cols:
-                            from model.knight import Knight # Import local pour tester
+                            from model.knight import Knight
                             u = Knight()
                             game.add_unit(u, game.local_player_id, row, col)
                             print(f"[PLACEMENT] Unité placée en {row}, {col}")
-                    
+
                     if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
                         is_placing = False
-                        auto_play = True
+                        auto_play  = True
                         print("[COMBAT] Phase de combat démarrée !")
 
                 gui.handle_events(event)
@@ -790,27 +862,26 @@ class MainMenu:
             if not is_placing and not game.is_finished() and auto_play:
                 game.step(dt=0.05)
             elif is_placing:
-                # En mode placement, on fait quand même un step pour recevoir les unités de l'autre
                 game.step(dt=0)
 
             gui.screen_w, gui.screen_h = self.screen.get_size()
             gui.handle_input()
             gui.draw(self.screen)
-            # ... (code de victoire existant) ...
+
             if game.is_finished():
                 winner = game.get_winner()
                 font = pygame.font.SysFont("Arial", 36, bold=True)
 
                 if winner is None:
-                    text = "MATCH NUL"
+                    text  = "MATCH NUL"
                     color = (255, 255, 255)
                 else:
-                    text = f"VICTOIRE ÉQUIPE {winner}"
-                    color = (255, 215, 0)
+                    text  = f"VICTOIRE ÉQUIPE {winner}"
+                    color = TEAM_COLORS.get(winner, (255, 215, 0))
 
                 cx, cy = self.screen.get_size()
-                surf = font.render(text, True, color)
-                rect = surf.get_rect(center=(cx // 2, 100))
+                surf   = font.render(text, True, color)
+                rect   = surf.get_rect(center=(cx // 2, 100))
 
                 bg = pygame.Surface((rect.width + 30, rect.height + 20))
                 bg.set_alpha(200)
@@ -818,20 +889,121 @@ class MainMenu:
                 self.screen.blit(bg, bg.get_rect(center=rect.center))
                 self.screen.blit(surf, rect)
 
-                # Instruction
                 hint_font = pygame.font.SysFont("Arial", 18)
-                hint = hint_font.render("Appuyez sur [ESC] pour retourner au menu", True, (200, 200, 200))
+                hint      = hint_font.render("Appuyez sur [ESC] pour retourner au menu",
+                                             True, (200, 200, 200))
                 hint_rect = hint.get_rect(center=(cx // 2, 150))
                 self.screen.blit(hint, hint_rect)
 
             pygame.display.flip()
-            pygame.display.flip()
             clock.tick(target_fps)
 
-         # Fin de battle_window, on retourne au menu (qui est dans la boucle run)
         print("Retour au menu...")
 
+    def launch_multiplayer_3p(self):
+        """
+        Lance une partie 3 joueurs P2P.
+        Ports IPC (test local sur une même machine) :
+          Joueur A : IPC_IN=5000, IPC_OUT=5001, NET=6000
+          Joueur B : IPC_IN=5002, IPC_OUT=5003, NET=6001
+          Joueur C : IPC_IN=5004, IPC_OUT=5005, NET=6002
+        """
+        player_id = self._get_selected_player_id()
+        ai_name   = self.multi_ai_choice.get_selected()
+
+        PORT_MAP = {
+            "A": {"ipc_in": 5000, "ipc_out": 5001, "net": 6000},
+            "B": {"ipc_in": 5002, "ipc_out": 5003, "net": 6001},
+            "C": {"ipc_in": 5004, "ipc_out": 5005, "net": 6002},
+        }
+        my_ports = PORT_MAP[player_id]
+
+        print(f"\n[NET 3J] Lancement — Joueur '{player_id}' | IA : {ai_name}")
+        print(f"[NET 3J] Ports IPC : {my_ports['ipc_in']}/{my_ports['ipc_out']} "
+              f"| NET : {my_ports['net']}")
+
+        ipc = IPCClient(
+            port_in=my_ports["ipc_in"],
+            port_out=my_ports["ipc_out"],
+            player_id=player_id
+        )
+
+        import time
+        my_choice = {
+            "type": "setup_choice_3p",
+            "pid":  player_id,
+            "ia":   ai_name,
+        }
+
+        other_players = [p for p in ["A", "B", "C"] if p != player_id]
+        received      = {}
+        timeout       = time.time() + 30
+
+        print(f"[NET 3J] En attente des joueurs {other_players}...")
+        self._show_waiting_screen("EN ATTENTE DES 2 AUTRES JOUEURS...")
+
+        while time.time() < timeout and len(received) < 2:
+            ipc.send(my_choice)
+            for msg in ipc.receive_all():
+                if isinstance(msg, dict) and msg.get("type") == "setup_choice_3p":
+                    pid_recv = msg.get("pid")
+                    if pid_recv and pid_recv != player_id and pid_recv not in received:
+                        received[pid_recv] = msg
+                        print(f"[NET 3J] Joueur '{pid_recv}' connecté ({msg.get('ia')})")
+                        self._show_waiting_screen(
+                            f"Joueur {pid_recv} connecté — "
+                            f"En attente... ({len(received)}/2)"
+                        )
+            time.sleep(0.3)
+            # Traiter les événements pygame pour ne pas geler
+            for ev in pygame.event.get():
+                if ev.type == pygame.QUIT:
+                    ipc.close()
+                    return
+
+        if len(received) < 2:
+            print(f"[ERR 3J] Timeout — Reçu seulement {len(received)}/2 joueurs")
+            self._show_waiting_screen("TIMEOUT — Réessayez !", color=(220, 60, 60))
+            time.sleep(2)
+            ipc.close()
+            return
+
+        print(f"[NET 3J] Tous les joueurs connectés ! Démarrage...")
+
+        from model.map import BattleMap
+        from model.game import Game
+
+        all_players = [player_id] + list(received.keys())
+        ai_cls_me   = AVAILABLE_AIS[ai_name]
+        controllers = {player_id: ai_cls_me(player_id)}
+
+        game = Game(BattleMap(120, 120), controllers, ipc_client=ipc)
+        game.local_player_id = player_id
+
+        for pid in all_players:
+            spawn_army_trio(game, pid)
+
+        print(f"[NET 3J] Jeu créé — {len(game.units)} unités | Joueurs : {all_players}")
+        self.start_battle_window(game, is_multi=True)
+        self.state = "main"
+
+    def _show_waiting_screen(self, message: str, color=None):
+        """Affiche un écran d'attente simple."""
+        col = color or ACCENT_COLOR
+        self.screen.fill(BG_COLOR)
+        if self.bg_scaled:
+            self.screen.blit(self.bg_scaled, (0, 0))
+        overlay = pygame.Surface((self.w, self.h))
+        overlay.set_alpha(160)
+        overlay.fill((0, 0, 0))
+        self.screen.blit(overlay, (0, 0))
+        surf = self.font_small.render(message, True, col)
+        rect = surf.get_rect(center=(self.w // 2, self.h // 2))
+        self.screen.blit(surf, rect)
+        pygame.display.flip()
+
     def draw_scenario_screen(self):
+
         cx, cy = self.w // 2, self.h // 2
         # Titre
         title = self.font_button.render("SCÉNARIOS CLASSIQUES", True, ACCENT_COLOR)

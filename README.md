@@ -112,27 +112,45 @@ Dès que la partie commence, testez de placer des unités de chaque côté : le 
 
 ---
 
-## 🚀 Comment tester la Version 2 (P2P Synchronisé)
+## 🚀 Comment tester la Version 2 (P2P Synchronisé — 2 Joueurs)
 
 Ouvrez **4 terminaux** à la racine du projet et lancez les commandes dans cet ordre :
 
-**Terminal 1 — Routeur réseau Joueur 1 (Hôte)**
+> **Prérequis :** Compilez le routeur C une fois avec :
+> ```bash
+> gcc -o reseau.exe reseau.c -lws2_32
+> ```
+> Si vous n'avez pas `gcc`, utilisez le fallback Python `p2p_node_mock.py` (voir ci-dessous).
+
+---
+
+**Terminal 1 — Routeur réseau Joueur A (Hôte)**
+```bash
+.\reseau.exe 6000 A 5000 5001 127.0.0.1:6001
+```
+*Fallback Python (sans gcc) :*
 ```bash
 py p2p_node_mock.py 6000 127.0.0.1 6001 5000 5001
 ```
 
-**Terminal 2 — Jeu Joueur 1**
+**Terminal 2 — Jeu Joueur A**
 ```bash
 py launch.py
 ```
 *(Dans le menu : Multijoueur P2P → Choisir une Zone → **CRÉER**)*
 
-**Terminal 3 — Routeur réseau Joueur 2 (Client)**
+---
+
+**Terminal 3 — Routeur réseau Joueur B (Client)**
+```bash
+.\reseau.exe 6001 B 5002 5003 127.0.0.1:6000
+```
+*Fallback Python (sans gcc) :*
 ```bash
 py p2p_node_mock.py 6001 127.0.0.1 6000 5002 5003
 ```
 
-**Terminal 4 — Jeu Joueur 2**
+**Terminal 4 — Jeu Joueur B**
 ```bash
 py launch.py
 ```
@@ -140,3 +158,77 @@ py launch.py
 
 > **Note :** Si les deux joueurs choisissent la même zone, le système de collision la résout automatiquement en déplaçant le client à la zone opposée.
 
+---
+
+## 🚀 Comment tester la Version 3 (P2P Multi — 3 Joueurs)
+
+La V3 supporte **N joueurs simultanés** grâce à la table de pairs dynamique (`g_peers[]`) et au protocole de découverte HELLO/HELLO_ACK intégré dans `reseau.exe`.
+
+Ouvrez **6 terminaux** à la racine du projet :
+
+> **Prérequis :** Même compilation que ci-dessus.
+
+---
+
+**Terminal 1 — Routeur Joueur A**
+```bash
+.\reseau.exe 6000 A 5000 5001 127.0.0.1:6001 127.0.0.1:6002
+```
+
+**Terminal 2 — Jeu Joueur A**
+```bash
+py launch.py
+```
+*(Multijoueur P2P → **MODE 3 JOUEURS** → Identifiant **Joueur A** → **CRÉER**)*
+
+---
+
+**Terminal 3 — Routeur Joueur B**
+```bash
+.\reseau.exe 6001 B 5002 5003 127.0.0.1:6000 127.0.0.1:6002
+```
+
+**Terminal 4 — Jeu Joueur B**
+```bash
+py launch.py
+```
+*(Multijoueur P2P → **MODE 3 JOUEURS** → Identifiant **Joueur B** → **CRÉER**)*
+
+---
+
+**Terminal 5 — Routeur Joueur C**
+```bash
+.\reseau.exe 6002 C 5004 5005 127.0.0.1:6000 127.0.0.1:6001
+```
+
+**Terminal 6 — Jeu Joueur C**
+```bash
+py launch.py
+```
+*(Multijoueur P2P → **MODE 3 JOUEURS** → Identifiant **Joueur C** → **CRÉER**)*
+
+---
+
+### Déploiement des armées (V3)
+
+| Joueur | Zone de départ | Couleur |
+|--------|----------------|---------|
+| A      | Nord-Ouest     | 🔵 Bleu  |
+| B      | Nord-Est       | 🔴 Rouge |
+| C      | Sud-Centre     | 🟢 Vert  |
+
+La partie démarre automatiquement dès que les 3 joueurs ont échangé leurs choix via le handshake réseau (`setup_choice_3p`). Le premier joueur à éliminer les deux autres armées remporte la bataille.
+
+### Syntaxe complète de `reseau.exe`
+
+```
+reseau.exe <port_net> <player_id> <ipc_in> <ipc_out> [peer1_ip:port] [peer2_ip:port] ...
+```
+
+| Argument       | Description                                      | Exemple        |
+|----------------|--------------------------------------------------|----------------|
+| `port_net`     | Port UDP réseau P2P de ce nœud                   | `6000`         |
+| `player_id`    | Identifiant de ce joueur (`A`, `B`, `C`…)        | `A`            |
+| `ipc_in`       | Port d'écoute des messages depuis Python         | `5000`         |
+| `ipc_out`      | Port de renvoi vers Python                       | `5001`         |
+| `peerN_ip:port`| Pairs initiaux connus (découverte automatique)   | `127.0.0.1:6001` |

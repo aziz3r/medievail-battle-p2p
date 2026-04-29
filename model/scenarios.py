@@ -377,3 +377,64 @@ def scenario_wonder_duel(terrain_func=None):
 
     print(f"[WONDER] Duel Standard+Wonder : {len(game.units)} unites.")
     return game
+
+
+def scenario_trois_camps(controllers=None) -> Game:
+    """
+    Bataille à Trois Camps — Chaque armée occupe un coin de la carte.
+    Équipe A : Nord-Ouest  (coin haut-gauche)
+    Équipe B : Nord-Est    (coin haut-droit)
+    Équipe C : Sud-Centre  (bas-centre)
+    """
+    rows, cols = 120, 120
+    battle_map = BattleMap(rows=rows, cols=cols)
+
+    if controllers is None:
+        from presenter.ai import MajorDaft, CaptainBraindead
+        controllers = {
+            "A": MajorDaft("A"),
+            "B": CaptainBraindead("B"),
+            "C": MajorDaft("C"),
+        }
+
+    game = Game(battle_map, controllers)
+
+    # ===== ARMÉE A — Nord-Ouest =====
+    for r in range(5, 30, 2):
+        for c in range(5, 18, 3):
+            game.add_unit(Pikeman(), "A", row=r, col=c)
+    for r in range(8, 25, 3):
+        for c in range(18, 28, 3):
+            game.add_unit(Knight(), "A", row=r, col=c)
+    for r in range(5, 30, 2):
+        for c in range(28, 38, 3):
+            game.add_unit(Crossbowman(), "A", row=r, col=c)
+
+    # ===== ARMÉE B — Nord-Est =====
+    for r in range(5, 30, 2):
+        for c in range(82, 95, 3):
+            game.add_unit(Pikeman(), "B", row=r, col=c)
+    for r in range(8, 25, 3):
+        for c in range(92, 102, 3):
+            game.add_unit(Knight(), "B", row=r, col=c)
+    for r in range(5, 30, 2):
+        for c in range(102, 115, 3):
+            game.add_unit(Crossbowman(), "B", row=r, col=c)
+
+    # ===== ARMÉE C — Sud-Centre =====
+    center_c = cols // 2
+    for r in range(90, 115, 2):
+        for c in range(center_c - 20, center_c - 8, 3):
+            game.add_unit(Pikeman(), "C", row=r, col=c)
+    for r in range(92, 112, 3):
+        for c in range(center_c - 8, center_c + 8, 3):
+            game.add_unit(Knight(), "C", row=r, col=c)
+    for r in range(90, 115, 2):
+        for c in range(center_c + 8, center_c + 20, 3):
+            game.add_unit(Crossbowman(), "C", row=r, col=c)
+
+    print(f"[TROIS CAMPS] 3 armées déployées : {len(game.units)} unités sur {rows}x{cols}.")
+    print(f"  Équipe A (Bleu)  : Nord-Ouest")
+    print(f"  Équipe B (Rouge) : Nord-Est")
+    print(f"  Équipe C (Vert)  : Sud-Centre")
+    return game

@@ -625,8 +625,18 @@ class GUI:
                         shadow_y = screen_y + (th // 2) - (ellipse_h // 4)
                         screen.blit(shadow_surf, (shadow_x, shadow_y))
                         
-                        # Fix: Align colored circle with shadow (same Y offset)
-                        pygame.draw.ellipse(screen, COLOR_TEAM_A if team == "A" else COLOR_TEAM_B, (screen_x + (tw//2) - ellipse_w//2, screen_y + (th//2) - ellipse_h//4, ellipse_w, ellipse_h), 1)
+                        # Cercle de couleur par equipe (supporte A, B, C...)
+                        _TEAM_CIRCLE_COLORS = {
+                            'A': COLOR_TEAM_A,
+                            'B': COLOR_TEAM_B,
+                            'C': (60, 180, 80),
+                            'D': (200, 160, 0),
+                        }
+                        circle_color = _TEAM_CIRCLE_COLORS.get(team, (180, 180, 180))
+                        pygame.draw.ellipse(screen, circle_color,
+                            (screen_x + (tw//2) - ellipse_w//2,
+                             screen_y + (th//2) - ellipse_h//4,
+                             ellipse_w, ellipse_h), 1)
 
                     screen.blit(scaled_img, (draw_x, draw_y))
                     
@@ -715,11 +725,15 @@ class GUI:
         pygame.draw.polygon(screen, (34, 139, 34), [p1, p2, p3, p4])
         pygame.draw.polygon(screen, (100, 200, 100), [p1, p2, p3, p4], 1)
         
+        _MINI_TEAM_COLORS = {'A': COLOR_TEAM_A, 'B': COLOR_TEAM_B,
+                              'C': (60, 180, 80), 'D': (200, 160, 0)}
         units = getattr(self.game, 'alive_units', lambda: [])()
         for unit in units:
             px, py = to_mini(getattr(unit, 'x', 0), getattr(unit, 'y', 0))
-            color = COLOR_TEAM_A if getattr(unit, 'team', '?') == "A" else COLOR_TEAM_B
+            t = getattr(unit, 'team', '?')
+            color = _MINI_TEAM_COLORS.get(t, (180, 180, 180))
             pygame.draw.circle(screen, color, (int(px), int(py)), 3)
+
 
         view_w_world = self.screen_w / self.zoom
         view_h_world = self.screen_h / self.zoom
@@ -735,18 +749,58 @@ class GUI:
 
     def draw_army_stats(self, screen):
         if not self.show_ui_master: return
-        counts = {'A': {}, 'B': {}}; totals = {'A': 0, 'B': 0}
+
+        # Construction dynamique : n'importe quelle equipe peut exister (A, B, C...)
+        counts = {}; totals = {}
         units = getattr(self.game, 'alive_units', lambda: [])()
         for u in units:
             team = getattr(u, 'team', '?'); u_type = type(u).__name__
-            if team not in counts: counts[team] = {}
-            counts[team][u_type] = counts[team].get(u_type, 0) + 1; totals[team] += 1
+            if team not in counts:
+                counts[team] = {}
+                totals[team] = 0
+            counts[team][u_type] = counts[team].get(u_type, 0) + 1
+            totals[team] += 1
 
-        ai_name_a = type(self.game.controllers.get('A')).__name__ if 'A' in self.game.controllers else "?"
-        ai_name_b = type(self.game.controllers.get('B')).__name__ if 'B' in self.game.controllers else "?"
+        # Couleurs par equipe (extensible)
+        PANEL_COLORS = {
+            'A': COLOR_TEAM_A,
+            'B': COLOR_TEAM_B,
+            'C': (60, 180, 80),    # Vert
+            'D': (200, 160, 0),    # Jaune
+        }
+        DEFAULT_PANEL_COLOR = (180, 180, 180)
 
-        if self.show_panel_a: self._draw_single_panel(screen, "Équipe A", ai_name_a, counts.get('A', {}), totals.get('A', 0), 20, 20, COLOR_TEAM_A)
-        if self.show_panel_b: self._draw_single_panel(screen, "Équipe B", ai_name_b, counts.get('B', {}), totals.get('B', 0), self.screen_w - 220, 20, COLOR_TEAM_B)
+        # Noms des IAs
+        def ai_name(team):
+            ctrl = self.game.controllers.get(team)
+            return type(ctrl).__name__ if ctrl else "?"
+
+        # Disposition : panneaux A et B aux extremites, C (et D...) en dessous
+        panel_positions = {}
+        if 'A' in counts: panel_positions['A'] = (20, 20)
+        if 'B' in counts: panel_positions['B'] = (self.screen_w - 220, 20)
+        extra_y = 20
+        for team in sorted(counts.keys()):
+            if team not in ('A', 'B'):
+                # Centrer les equipes supplementaires en bas-gauche
+                panel_positions[team] = (20, extra_y + 160)
+                extra_y += 160
+
+        if self.show_panel_a and 'A' in panel_positions:
+            self._draw_single_panel(screen, "Equipe A", ai_name('A'),
+                                    counts.get('A', {}), totals.get('A', 0),
+                                    *panel_positions['A'], PANEL_COLORS.get('A', DEFAULT_PANEL_COLOR))
+        if self.show_panel_b and 'B' in panel_positions:
+            self._draw_single_panel(screen, "Equipe B", ai_name('B'),
+                                    counts.get('B', {}), totals.get('B', 0),
+                                    *panel_positions['B'], PANEL_COLORS.get('B', DEFAULT_PANEL_COLOR))
+        # Panneaux des equipes supplementaires (C, D...)
+        for team in sorted(counts.keys()):
+            if team not in ('A', 'B') and team in panel_positions:
+                self._draw_single_panel(screen, f"Equipe {team}", ai_name(team),
+                                        counts.get(team, {}), totals.get(team, 0),
+                                        *panel_positions[team],
+                                        PANEL_COLORS.get(team, DEFAULT_PANEL_COLOR))
 
     def _draw_single_panel(self, screen, title, ai_name, data, total, x, y, color):
         h = 50

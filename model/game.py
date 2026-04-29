@@ -26,11 +26,18 @@ class Game:
         # Anti-deadlock : on stocke l'heure de la requête pour détecter les timeouts
         self.pending_requests: Dict[str, float] = {}  # uid -> timestamp (time.time())
         
-        # Initialisation de la Propriété Réseau sur la carte (50/50)
-        mid_col = self.map.cols // 2
+        # Initialisation de la Propriété Réseau sur la carte
+        # Division dynamique selon le nombre de contrôleurs (2 → moitiés, 3 → tiers, 4 → quarts)
+        num_teams = max(len(controllers), 2)
+        team_ids  = list(controllers.keys()) if controllers else ["A", "B"]
+        # Si moins de 2 équipes définies, fallback A/B
+        if len(team_ids) < 2:
+            team_ids = ["A", "B"]
+        col_width = self.map.cols / num_teams
         for r in range(self.map.rows):
             for c in range(self.map.cols):
-                owner = "A" if c < mid_col else "B"
+                tier  = min(int(c / col_width), num_teams - 1)
+                owner = team_ids[tier] if tier < len(team_ids) else team_ids[-1]
                 self.map.set_owner(c, r, owner)
         self.units: List[Any] = []
         self.time: float = 0.0
@@ -154,12 +161,12 @@ class Game:
         # === DEBUT SYNCHRONISATION P2P (RECEPTION) ===
         if self.ipc_client is not None:
             try:
-                data = self.ipc_client.receive()
-                if data:
+                # receive_all() vide tout le buffer en un appel (essentiel en multi-joueurs)
+                messages = self.ipc_client.receive_all()
+                for data in messages:
                     self.apply_sync_state(data, self.local_player_id)
             except Exception as e:
                 print(f"[RESEAU] Erreur lors de la réception : {e}")
-                pass
         # === FIN SYNCHRONISATION P2P (RECEPTION) ===
 
         all_actions: List[tuple[Any, ...]] = []
@@ -563,8 +570,10 @@ class Game:
                             target_unit.y = max(0.0, min(float(info["y"]), float(self.map.rows - 1)))
                 else:
                     # Création (Nouvelle unité distante)
-                    team = uid.split('_')[0] if '_' in uid else ("B" if local_id == "A" else "A")
-                    if team == self.local_player_id: continue # Sécurité : on ignore si c'est censé être l'un des nôtres
+                    # Le team est toujours le préfixe avant '_' dans l'uid (ex: "B_12" -> "B")
+                    team = uid.split('_')[0] if '_' in uid else None
+                    if team is None or team == self.local_player_id:
+                        continue  # Sécurité : on ignore si c'est censé être l'un des nôtres
                     
                     u_type = info.get("tp", "Pikeman")
                     # Détermination de la classe (Import dynamique)
@@ -605,9 +614,10 @@ class Game:
                     "h": round(u.hp, 1),
                     "cd": round(getattr(u, "cooldown", 0), 2)  # Cooldown pour déclencher l'animation d'attaque
                 }
-        
+
         if not local_units: return None
-        return {"t": "as", "u": local_units} # "t": "as" pour army_sync, "u" pour units
+        # "pid" identifie l'émetteur — essentiel en multi-joueurs pour que C et les pairs sachent l'origine
+        return {"t": "as", "u": local_units, "pid": self.local_player_id}
 
     def get_battle_summary(self) -> dict:
         survivors: Dict[str, dict] = {}
