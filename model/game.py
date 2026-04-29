@@ -20,6 +20,10 @@ class Game:
         self.unit_counters: Dict[str, int] = {} # Compteurs par équipe pour des UID stables
         self.sync_tick = 0         # Pour limiter le débit réseau
         
+        # --- File d'attente et Verrouillage Réseau (V2) ---
+        self.pending_actions: Dict[str, tuple] = {}
+        self.pending_requests: set = set()
+        
         # Initialisation de la Propriété Réseau sur la carte (50/50)
         mid_col = self.map.cols // 2
         for r in range(self.map.rows):
@@ -46,6 +50,16 @@ class Game:
 
         for team, controller in self.controllers.items():
             self.next_decision_time[team] = 0.0
+
+    def request_ownership(self, entity_id: str) -> None:
+        """Envoie une requête via IPC pour demander la propriété réseau d'une entité ou d'une case."""
+        if entity_id in self.pending_requests:
+            return # Requête déjà envoyée, on patiente
+            
+        self.pending_requests.add(entity_id)
+        if self.ipc_client:
+            # Envoi du message spécifique "req_own"
+            self.ipc_client.send_message({"t": "req_own", "uid": entity_id})
 
     def add_unit(self, unit: Guerrier, team: str, row: int, col: int) -> None:
         unit.team = team
@@ -388,7 +402,27 @@ class Game:
         data : { "t": "army_sync", "u": { uid: { "type": ..., "x": ..., "y": ..., "hp": ... } } }
         """
         try:
-            if not isinstance(data, dict) or data.get("t") != "as":
+            if not isinstance(data, dict):
+                return
+                
+            t = data.get("t")
+            
+            # --- Traitement de l'acceptation de propriété (V2) ---
+            if t == "own_grant":
+                uid = data.get("uid")
+                if uid:
+                    if uid.startswith("tile_"):
+                        _, x, y = uid.split("_")
+                        self.map.set_owner(float(x), float(y), local_id)
+                    else:
+                        target_unit = next((u for u in self.units if getattr(u, "uid", None) == uid), None)
+                        if target_unit:
+                            target_unit.proprietaire_reseau = local_id
+                    
+                    self.pending_requests.discard(uid)
+                return
+                
+            if t != "as":
                 return
 
             units_data = data.get("u", {})

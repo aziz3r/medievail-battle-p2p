@@ -12,6 +12,36 @@ class BaseController:
     def decide_actions(self, game: Game) -> List[tuple[Any, ...]]:
         raise NotImplementedError
 
+    def _assign_intent(self, unit, intent, game: Game):
+        """Assigne une intention si l'IA possède les droits (acteur + cible), sinon la met en attente et demande les droits."""
+        local_id = game.local_player_id
+        
+        # 1. Vérifier la propriété de l'unité actrice
+        if getattr(unit, "proprietaire_reseau", None) != local_id:
+            game.pending_actions[unit.uid] = intent
+            game.request_ownership(unit.uid)
+            return
+            
+        # 2. Vérifier la propriété de la cible
+        kind = intent[0]
+        if kind == "move_to":
+            _, tx, ty = intent
+            # Demande la propriété de la case
+            if game.map.get_owner(tx, ty) != local_id:
+                game.pending_actions[unit.uid] = intent
+                tile_id = f"tile_{int(tx)}_{int(ty)}"
+                game.request_ownership(tile_id)
+                return
+        elif kind == "attack":
+            _, target = intent
+            if getattr(target, "proprietaire_reseau", None) != local_id:
+                game.pending_actions[unit.uid] = intent
+                game.request_ownership(target.uid)
+                return
+                
+        # Si on possède tout, on assigne l'action immédiatement !
+        unit.intent = intent
+
 
 class CaptainBraindead(BaseController):
     """
@@ -46,7 +76,7 @@ class CaptainBraindead(BaseController):
                 continue
 
             if hasattr(u, "in_range") and u.in_range(best_dist):
-                u.intent = ("attack", best_target)
+                self._assign_intent(u, ("attack", best_target), game)
 
         return actions
 
@@ -72,12 +102,12 @@ class MajorDaft(BaseController):
             dist = game.map.distance(u, target)
 
             if hasattr(u, "in_range") and u.in_range(dist):
-                u.intent = ("attack", target)
+                self._assign_intent(u, ("attack", target), game)
                 continue
 
             target_x = float(getattr(target, "x", 0.0))
             target_y = float(getattr(target, "y", 0.0))
-            u.intent = ("move_to", target_x, target_y)
+            self._assign_intent(u, ("move_to", target_x, target_y), game)
 
         return actions
 
@@ -128,12 +158,12 @@ class AssasinJack(BaseController):
             dist = game.map.distance(u, target)
 
             if hasattr(u, "in_range") and u.in_range(dist):
-                u.intent = ("attack", target)
+                self._assign_intent(u, ("attack", target), game)
                 continue
 
             target_x = float(getattr(target, "x", 0.0))
             target_y = float(getattr(target, "y", 0.0))
-            u.intent = ("move_to", target_x, target_y)
+            self._assign_intent(u, ("move_to", target_x, target_y), game)
 
         return actions
 
@@ -279,11 +309,11 @@ class PredictEinstein(BaseController):
         for u, target, dist in unit_assignments:
             reach = u.range if u.range > 0 else 1.0
             if dist <= reach:
-                u.intent = ("attack", target)
+                self._assign_intent(u, ("attack", target), game)
             else:
                 target_x = float(getattr(target, "x", 0.0))
                 target_y = float(getattr(target, "y", 0.0))
-                u.intent = ("move_to", target_x, target_y)
+                self._assign_intent(u, ("move_to", target_x, target_y), game)
 
         return actions
 
