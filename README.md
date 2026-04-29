@@ -1,111 +1,116 @@
-# Infrastructure Répartie pour Compétition d'IAs Distribuées
+# MedievAIl Battle : Infrastructure Répartie pour Compétition d'IAs Distribuées
 
-## 📌 Introduction et Objectifs
-Ce projet implémente une **infrastructure réseau décentralisée à large échelle** permettant la compétition d'Intelligences Artificielles. Contrairement aux architectures client-serveur classiques, l'objectif est d'assurer une bataille multi-participants dans un environnement **pur Pair-à-Pair (P2P)**, sans aucun serveur central ou point de défaillance unique.
-*(Auteur original du concept : Christian Toinard)*
+## 📌 Architecture Globale
 
-## 🎯 Enjeux Techniques
-L'absence de serveur central pose le défi majeur du **maintien de la cohérence de l'état distribué**. 
-L'enjeu principal réside dans l'antinomie classique des systèmes répartis : **Cohérence vs Concurrence**. Comment garantir que deux processus distants ne modifient pas la même entité simultanément de manière conflictuelle tout en maintenant des performances d'exécution hautement concurrentes ? Le projet répond à cette problématique par une séparation stricte des responsabilités et un modèle de propriété innovant.
+Ce projet implémente une **infrastructure réseau décentralisée à large échelle** (pur Pair-à-Pair) pour un jeu de bataille stratégique. Le cœur du système repose sur une **séparation stricte des responsabilités en deux processus** distincts par machine afin d'isoler la logique de jeu de la gestion réseau :
+1. **Processus Applicatif (Python)** : Gère la logique métier, l'Intelligence Artificielle, l'interface graphique et l'état de la partie.
+2. **Processus Réseau (C)** : Gère exclusivement les communications inter-noeuds (sockets UDP/TCP asynchrones), le routage des paquets, et le maintien de la cohérence de l'état (protocole de consensus).
 
-## ⚙️ Architecture Multi-Processus
-Pour dissocier la logique applicative (l'IA) de la plomberie réseau et système, l'architecture impose une **séparation obligatoire en deux processus distincts** sur chaque machine locale :
-1. **Le Processus Réseau (C) :** Gère les connexions non bloquantes, les Sockets de bas niveau, et les threads de routage. Il est responsable de la consistance inter-noeuds.
-2. **Le Processus Applicatif / IA (Python) :** Évalue la scène, exécute les heuristiques et demande des actions.
-
-Ces deux entités communiquent localement via des mécanismes de **Communication Inter-Processus (IPC)** (ex: sockets locaux, mémoires partagées ou files de messages) et s'appuient sur des primitives de synchronisation (Sémaphores/Mutex) pour éviter les accès concurrents locaux.
-
-### Schéma de Déploiement Logiciel
+Les deux processus communiquent localement via un mécanisme de **Communication Inter-Processus (IPC)** (typiquement des sockets locaux). Cette architecture garantit que la logique de jeu n'est jamais bloquée par les lenteurs réseau, et inversement.
 
 ```mermaid
 graph TD
-    subgraph Machine Distante 1
-        DaemonDist1[Daemon C Distant]
-    end
-    
-    subgraph Machine Distante 2
-        DaemonDist2[Daemon C Distant]
+    subgraph Nœud P2P Distant (Adversaire)
+        DaemonDist[Processus Réseau C Distant]
     end
 
-    subgraph Machine Locale
-        ProcPy[Processus Applicatif IA <br/> Python]
-        ProcC[Processus Réseau & Système <br/> C]
+    subgraph Nœud P2P Local (Votre Machine)
+        ProcPy[Processus Applicatif / IA <br/> Python]
+        ProcC[Processus Réseau <br/> C]
         
-        ProcPy <-->|IPC & Synchronisation locale| ProcC
+        ProcPy <-->|IPC (Sockets locaux UDP)| ProcC
     end
 
-    ProcC <===>|API Sockets P2P <br/> Protocoles asynchrones| DaemonDist1
-    ProcC <===>|API Sockets P2P <br/> Protocoles asynchrones| DaemonDist2
+    ProcC <===>|API Sockets P2P <br/> UDP Asynchrone| DaemonDist
 ```
 
-## 🔒 Protocole de Cohérence Décentralisé
-Pour résoudre les conflits sans arbitre centralisé, l'architecture s'appuie sur le concept de **"Propriété Réseau" (Network Ownership) cessible**.
+## 🔄 Diagramme de Séquence et Cohérence
 
-Le modèle garantit l'intégrité de la scène (personnages, objets, cases) :
-- Une entité (ex: une unité sur la carte) possède un unique "propriétaire" sur le réseau P2P à un instant $t$.
-- Seul le nœud propriétaire a le droit d'altérer l'état de cette entité.
-- Si une machine distante souhaite modifier cette entité, elle doit d'abord demander le transfert de la Propriété Réseau aux pairs.
-- Une fois l'action effectuée par le propriétaire, le nouvel état est diffusé de manière **Best-effort** aux autres copies locales.
-
-### Flux d'Exécution d'une Action
+L'enjeu principal d'une architecture sans serveur (Serverless) est d'éviter les modifications concurrentes contradictoires. Pour ce faire, le système implémente une notion de **"Propriété Réseau" (Network Ownership)**. 
+Une entité n'a qu'un seul propriétaire légitime à un instant *t*. Si une IA locale veut modifier une entité, elle demande l'autorisation à son processus réseau local. Si ce nœud n'est pas propriétaire, il doit d'abord négocier le transfert de propriété avec les autres pairs avant que le Python ne soit autorisé à exécuter l'action.
 
 ```mermaid
 sequenceDiagram
-    participant IA as IA (Python)
-    participant CL as Daemon C (Local)
-    participant CD as Daemon C (Distant)
+    participant IA as IA (Python Local)
+    participant CL as Daemon Réseau (C Local)
+    participant CD as Daemon Réseau (C Distant)
 
-    Note over IA, CL: Intention d'agir sur l'Entité X
-    IA->>CL: Demande d'action sur l'Entité X
+    Note over IA, CL: L'IA décide de déplacer une Unité
+    IA->>CL: Requête d'action (IPC Local)
     
-    alt Possède la Propriété Réseau
+    alt Le nœud possède la Propriété Réseau
         CL-->>IA: Autorisation immédiate
-    else Ne possède pas la Propriété Réseau
-        CL->>CD: Requête de transfert de Propriété pour X
-        Note over CD: Résolution du consensus local/distant
-        CD-->>CL: Propriété transférée (Acquittement)
+    else Le nœud NE possède PAS la Propriété
+        CL->>CD: Requête P2P : Transfert de Propriété
+        Note over CD: Validation et résolution de conflit
+        CD-->>CL: Acquittement de Transfert
         CL-->>IA: Autorisation accordée
     end
     
-    IA->>CL: Exécution & Application locale de l'action
-    Note over CL, CD: Diffusion non bloquante
-    CL-)CD: Broadcast Best-effort du nouvel état
+    IA->>IA: Exécution locale (Mise à jour UI)
+    IA->>CL: Notification d'état modifié
+    CL-)CD: Broadcast P2P du nouvel état (Best-effort / Fiabilisé)
 ```
 
-## 🛠️ Contexte Technique
-- **Langages de programmation :** C (Couche Système, Routage et Réseau), Python (Couche Applicative et IA).
-- **Infrastructures Systèmes :** Threads POSIX / Windows, Sémaphores, Mutex.
-- **Réseau :** API Sockets UNIX/Windows (UDP/TCP), Communication Inter-Processus (IPC).
+## 📖 Historique des Versions
 
----
+### 🔹 Version 1 : Jeu Local et Mode Best-Effort (Non Synchronisé)
+La Version 1 constituait l'ébauche initiale du projet. Elle consistait principalement en :
+- Une logique de jeu entièrement en **Python**.
+- Une première tentative de mise en réseau basique où les actions étaient simplement diffusées sur le réseau en **"Best-Effort"** sans aucune garantie de réception ni ordre.
+- **Résultat** : En raison de l'absence de gestion de concurrence, les actions simultanées provoquaient des conflits (des unités apparaissant en double, des "fantômes", et des désynchronisations majeures de l'état de la partie entre les joueurs).
 
-## 🚀 Comment tester la V1 en local
-Afin de valider la conception "Best-Effort" (UDP sans garantie), vous pouvez simuler deux joueurs en concurrence sur un seul ordinateur. 
+### 🔹 Version 2 : Synchronisation Avancée, Architecture Hybride et Propriété Réseau
+La Version 2 représente l'aboutissement de l'infrastructure répartie avec l'introduction du **C pour la couche réseau** :
+- **Architecture Hybride C/Python** totalement opérationnelle via des sockets IPC.
+- Implémentation du système de **Propriété Réseau** garantissant qu'aucun conflit ne peut survenir (une seule entité modifie un objet à la fois).
+- Correction de tous les comportements aberrants (Anti-zombie, Anti-desync, victoire synchronisée).
+- Mécanismes de "Timeout" et de récupération en cas de perte de paquets.
+
+## ⚖️ Comparatif : Version 1 vs Version 2
+
+| Caractéristique | Version 1 (Best-Effort) | Version 2 (Hybride Synchronisée) |
+| :--- | :--- | :--- |
+| **Langage de la couche réseau** | Python (Mock basique) | C (Sockets natifs POSIX / Winsock) |
+| **Gestion des conflits** | Aucune (Écrasement d'état) | Système de Propriété Réseau (Consensus) |
+| **Stabilité P2P** | Faible (Désynchronisations fréquentes) | Élevée (Anti-zombie, réconciliation d'état) |
+| **Latence Applicative** | Bloquante par moments | Non-bloquante (Architecture multi-processus) |
+| **Complexité Technique** | Simple | Avancée (IPC, Threads, Protocoles bas niveau) |
+
+## 🚀 Comment Tester le Projet
+
+### 🕹️ Tester la Version 1 (Mode Best-Effort / Désynchronisé)
+Afin de visualiser pourquoi la Version 2 a été créée, vous pouvez tester la Version 1 qui montre les failles d'un réseau pur UDP sans protocole de cohérence :
 
 Ouvrez 4 terminaux à la racine du projet :
 
 **[Joueur 1 - Hôte]**
-1. Lancer le routeur de l'hôte (Terminal 1) :
-   ```bash
-   py p2p_node_mock.py 6000 127.0.0.1 6001 5000 5001 0
-   ```
-   *(Note : Si vous disposez de gcc, vous pouvez aussi compiler et utiliser `./network_poc/p2p_node.exe 6000 127.0.0.1 6001 5000 5001`)*
-
-2. Lancer le jeu de l'hôte (Terminal 2) :
-   ```bash
-   py launch.py
-   ```
-   *(Choix 6 -> Sélectionner Zone 1 -> CRÉER)*
+1. Lancer le routeur simulé en Python (Terminal 1) : `python p2p_node_mock.py 6000 127.0.0.1 6001 5000 5001 0`
+2. Lancer le jeu (Terminal 2) : `python launch.py` *(Menu Choix 6 -> Zone 1 -> CRÉER)*
 
 **[Joueur 2 - Client]**
-3. Lancer le routeur du client (Terminal 3) :
-   ```bash
-   py p2p_node_mock.py 6001 127.0.0.1 6000 5002 5003 0
-   ```
-4. Lancer le jeu du client (Terminal 4) :
-   ```bash
-   py launch.py
-   ```
-   *(Choix 6 -> Sélectionner Zone 4 -> REJOINDRE)*
+3. Lancer le routeur simulé du client (Terminal 3) : `python p2p_node_mock.py 6001 127.0.0.1 6000 5002 5003 0`
+4. Lancer le jeu (Terminal 4) : `python launch.py` *(Menu Choix 6 -> Zone 4 -> REJOINDRE)*
 
-Dès que la partie commence, testez de placer des unités de chaque côté : le système fonctionnera en concurrence totale. Puisqu'il s'agit d'un réseau pur UDP sans blocage (Best-Effort), des actions brutales et simultanées pourront causer d'éventuelles désynchronisations (fantômes, rubber-banding), validant ainsi que le protocole ne bloque pas l'exécution.
+*Observez la désynchronisation en effectuant des actions simultanées des deux côtés.*
+
+### 🛠️ Tester la Version 2 (Mode Synchronisé Hybride C/Python)
+Pour tester la version finale stable, il faut utiliser l'exécutable réseau écrit en C :
+
+**Étape Préalable : Compilation du réseau (C)**
+```bash
+gcc reseau.c -o reseau.exe -lws2_32
+```
+*(Sur Linux, supprimez `-lws2_32` et ajoutez `-lpthread`)*
+
+Ouvrez 4 terminaux :
+
+**[Joueur 1 - Hôte]**
+1. Lancer le Daemon Réseau C (Terminal 1) : `./reseau.exe 6000 127.0.0.1 6001 5000 5001`
+2. Lancer le jeu applicatif (Terminal 2) : `python launch.py` *(Créer une partie)*
+
+**[Joueur 2 - Client]**
+3. Lancer le Daemon Réseau C (Terminal 3) : `./reseau.exe 6001 127.0.0.1 6000 5002 5003`
+4. Lancer le jeu applicatif (Terminal 4) : `python launch.py` *(Rejoindre la partie)*
+
+*Les deux instances sont maintenant parfaitement synchronisées grâce au protocole de propriété réseau géré par les processus C !*
