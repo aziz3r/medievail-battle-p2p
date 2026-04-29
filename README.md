@@ -10,18 +10,18 @@ Les deux processus communiquent localement via un mécanisme de **Communication 
 
 ```mermaid
 graph TD
-    subgraph Nœud P2P Distant (Adversaire)
-        DaemonDist[Processus Réseau C Distant]
+    subgraph Distant ["Nœud P2P Distant (Adversaire)"]
+        DaemonDist["Processus Réseau C Distant"]
     end
 
-    subgraph Nœud P2P Local (Votre Machine)
-        ProcPy[Processus Applicatif / IA <br/> Python]
-        ProcC[Processus Réseau <br/> C]
+    subgraph Local ["Nœud P2P Local (Votre Machine)"]
+        ProcPy["Processus Applicatif / IA <br/> Python"]
+        ProcC["Processus Réseau <br/> C"]
         
-        ProcPy <-->|IPC (Sockets locaux UDP)| ProcC
+        ProcPy <-->|"IPC (Sockets locaux UDP)"| ProcC
     end
 
-    ProcC <===>|API Sockets P2P <br/> UDP Asynchrone| DaemonDist
+    ProcC <-->|"API Sockets P2P <br/> UDP Asynchrone"| DaemonDist
 ```
 
 ## 🔄 Diagramme de Séquence et Cohérence
@@ -31,9 +31,9 @@ Une entité n'a qu'un seul propriétaire légitime à un instant *t*. Si une IA 
 
 ```mermaid
 sequenceDiagram
-    participant IA as IA (Python Local)
-    participant CL as Daemon Réseau (C Local)
-    participant CD as Daemon Réseau (C Distant)
+    participant IA as IA Python Local
+    participant CL as Daemon Réseau C Local
+    participant CD as Daemon Réseau C Distant
 
     Note over IA, CL: L'IA décide de déplacer une Unité
     IA->>CL: Requête d'action (IPC Local)
@@ -49,7 +49,7 @@ sequenceDiagram
     
     IA->>IA: Exécution locale (Mise à jour UI)
     IA->>CL: Notification d'état modifié
-    CL-)CD: Broadcast P2P du nouvel état (Best-effort / Fiabilisé)
+    CL-->>CD: Broadcast P2P du nouvel état (Best-effort / Fiabilisé)
 ```
 
 ## 📖 Historique des Versions
