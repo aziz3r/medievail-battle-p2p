@@ -16,9 +16,16 @@ class Game:
         self.map: BattleMap = battle_map
         self.controllers: Dict[str, Any] = controllers
         self.ipc_client = ipc_client
-        self.local_player_id = "A" # Par défaut
+        self.local_player_id = local_player_id or "A" # Par défaut
         self.unit_counters: Dict[str, int] = {} # Compteurs par équipe pour des UID stables
-        self.sync_tick = 0         # Pour limiter le débit réseauyer_id
+        self.sync_tick = 0         # Pour limiter le débit réseau
+        
+        # Initialisation de la Propriété Réseau sur la carte (50/50)
+        mid_col = self.map.cols // 2
+        for r in range(self.map.rows):
+            for c in range(self.map.cols):
+                owner = "A" if c < mid_col else "B"
+                self.map.set_owner(c, r, owner)
         self.units: List[Any] = []
         self.time: float = 0.0
         self.running: bool = True

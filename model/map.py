@@ -11,8 +11,9 @@ class BattleMap:
     def __init__(self, rows=120, cols=120, elevation_map=None):
         self.rows = rows
         self.cols = cols
-        # elevation_map peut être une fonction (x, y) -> elevation ou None
         self.elevation_map = elevation_map
+        # Propriété réseau des cases de la carte
+        self.ownership = [["" for _ in range(cols)] for _ in range(rows)]
 
     def in_bounds(self, x, y):
         """Vérifie que (x, y) est dans la carte."""
@@ -40,6 +41,28 @@ class BattleMap:
             return 0.0
 
         return 0.0
+
+    # --- Propriété Réseau ---
+
+    def get_owner(self, x, y):
+        """Retourne le propriétaire de la case (x, y)."""
+        if not self.in_bounds(x, y):
+            return None
+        ix, iy = int(round(x)), int(round(y))
+        # Protection supplémentaire contre les débordements d'arrondis
+        ix = max(0, min(self.cols - 1, ix))
+        iy = max(0, min(self.rows - 1, iy))
+        return self.ownership[iy][ix]
+
+    def set_owner(self, x, y, owner: str):
+        """Définit le propriétaire de la case (x, y)."""
+        if not self.in_bounds(x, y):
+            return False
+        ix, iy = int(round(x)), int(round(y))
+        ix = max(0, min(self.cols - 1, ix))
+        iy = max(0, min(self.rows - 1, iy))
+        self.ownership[iy][ix] = owner
+        return True
 
     def place_unit(self, unit, row, col):
         """
