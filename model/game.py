@@ -506,9 +506,9 @@ class Game:
                     if getattr(target_unit, "proprietaire_reseau", None) != self.local_player_id:
                         if "h" in info:
                             new_hp = float(info["h"])
-                            if target_unit.hp <= 0 and new_hp > 0:
-                                target_unit.is_zombie = True
-                            target_unit.hp = new_hp
+                            # Règle V2 : un mort reste mort. On ignore les paquets périmés.
+                            if not (target_unit.hp <= 0 and new_hp > 0):
+                                target_unit.hp = new_hp
                             
                         if "x" in info and "y" in info:
                             target_unit.x = max(0.0, min(float(info["x"]), float(self.map.cols - 1)))
