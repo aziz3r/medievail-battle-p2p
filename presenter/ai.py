@@ -13,34 +13,40 @@ class BaseController:
         raise NotImplementedError
 
     def _assign_intent(self, unit, intent, game: Game):
-        """Assigne une intention si l'IA possède les droits (acteur + cible), sinon la met en attente et demande les droits."""
+        """
+        Délégation d'Intention (Phase 2) :
+        Dans la V1, l'IA écrivait directement 'unit.intent = X'.
+        Dans la V2, l'IA 'propose' une intention. Si elle n'a pas les droits réseau, 
+        l'action est mise en file d'attente (pending_actions) et une requête est envoyée.
+        """
         local_id = game.local_player_id
         
-        # 1. Vérifier la propriété de l'unité actrice
+        # 1. Vérifier la propriété de l'unité actrice (Phase 2)
         if getattr(unit, "proprietaire_reseau", None) != local_id:
             # Option C — Réclamation Légitime :
             # Si c'est notre propre unité (même équipe) mais que l'adversaire en a le jeton,
-            # on le réclame activement au lieu d'abandonner l'unité.
+            # on le réclame activement au lieu d'abandonner l'unité (Anti-Starvation).
             if getattr(unit, "team", None) == local_id:
                 if unit.uid not in game.pending_requests:
                     print(f"[{local_id}] ♟️ Réclamation de notre unité {unit.uid} "
                           f"(actuellement détenue par '{unit.proprietaire_reseau}'). Envoi req_own.")
+            
+            # On stocke l'intention pour l'exécuter automatiquement dès que le jeton arrive
             game.pending_actions[unit.uid] = intent
             game.request_ownership(unit.uid)
             return
             
-        # 2. Pour un déplacement : le propriétaire de l'unité peut toujours la déplacer librement
-        #    (pas besoin de propriété de case, c'est réservé à la construction)
+        # 2. Vérification de la cible pour une attaque (Phase 2)
         kind = intent[0]
         if kind == "attack":
             _, target = intent
-            # Pour attaquer : on doit aussi posséder la cible (pour modifier ses HP)
+            # Autorité sur les HP : Pour blesser quelqu'un, on doit devenir 'maître' de sa santé.
             if getattr(target, "proprietaire_reseau", None) != local_id:
                 game.pending_actions[unit.uid] = intent
                 game.request_ownership(target.uid)
                 return
                 
-        # Si on possède tout ce qu'il faut, on assigne l'action immédiatement !
+        # Si on possède tous les verrous (Acteur + Cible), on valide l'action (Phase 4)
         unit.intent = intent
 
 

@@ -21,12 +21,18 @@ class Game:
         self.unit_counters: Dict[str, int] = {} # Compteurs par équipe pour des UID stables
         self.sync_tick = 0         # Pour limiter le débit réseau
         
-        # --- File d'attente et Verrouillage Réseau (V2) ---
+        # --- File d'attente et Verrouillage Réseau (Architecture V2) ---
+        # On ne peut plus modifier l'état d'un objet (HP, position) sans posséder son jeton de propriété.
+        # Cette file stocke les actions (ex: attaquer une cible) en attendant d'en avoir le droit.
         self.pending_actions: Dict[str, tuple] = {}
-        # Anti-deadlock : on stocke l'heure de la requête pour détecter les timeouts
+
+        # Anti-deadlock (Système de Timeout - Option B) : 
+        # Si un paquet UDP est perdu, l'unité pourrait rester bloquée "en attente" pour toujours.
+        # On stocke l'heure de la requête pour la libérer après 1.5s si aucune réponse n'arrive.
         self.pending_requests: Dict[str, float] = {}  # uid -> timestamp (time.time())
         
-        # Initialisation de la Propriété Réseau sur la carte (50/50)
+        # Initialisation de la Propriété Réseau sur la carte (Phase 1)
+        # On divise la carte en zones d'influence au démarrage pour éviter les conflits immédiats.
         mid_col = self.map.cols // 2
         for r in range(self.map.rows):
             for c in range(self.map.cols):
@@ -70,14 +76,18 @@ class Game:
                 del self.pending_actions[uid]
 
     def request_ownership(self, entity_id: str) -> None:
-        """Envoie une requête via IPC pour demander la propriété réseau d'une entité ou d'une case."""
+        """
+        Négociation P2P (Phase 2/3) :
+        Envoie une requête via IPC pour demander la propriété réseau d'une entité ou d'une case.
+        On ne force plus l'écriture locale (V1), on demande poliment l'autorisation (V2).
+        """
         if entity_id in self.pending_requests:
             return # Requête déjà envoyée, on patiente jusqu'au timeout
             
-        # On enregistre l'heure de la requête (pour le système de timeout)
+        # On enregistre l'heure de la requête pour le système anti-starvation
         self.pending_requests[entity_id] = time.time()
         if self.ipc_client:
-            # Envoi du message spécifique "req_own" avec le demandeur
+            # Envoi du message spécifique "req_own" (Request Ownership)
             self.ipc_client.send({"t": "req_own", "uid": entity_id, "req": self.local_player_id})
 
     def add_unit(self, unit: Guerrier, team: str, row: int, col: int) -> None:
@@ -253,7 +263,10 @@ class Game:
             return
         if not hasattr(attacker, "attaquer"):
             return
-        # Règle V2 : on ne peut pas modifier les HP d'une unité qu'on ne possède pas
+        # Règle d'Autorité Stricte (V2) :
+        # On ne peut modifier les HP d'une cible que si on possède sa propriété réseau.
+        # Cela évite le "double-dégât" (les deux instances infligeant des dégâts en même temps).
+        # Ici, l'attaquant 'vole' temporairement la propriété de la cible pour lui appliquer les dégâts.
         if self.ipc_client is not None:
             if getattr(target, "proprietaire_reseau", None) != self.local_player_id:
                 return
@@ -296,7 +309,9 @@ class Game:
         if hp_before > 0.0 and hp_after <= 0.0:
             if att_team is not None and att_team != "?":
                 self.kills[att_team] = self.kills.get(att_team, 0) + 1
-            # 📡 Diffusion immédiate de la mort (sans attendre le tick de synchro)
+            # 📡 Diffusion immédiate (Urgence Réseau) :
+            # On n'attend pas le prochain tick de synchro pour annoncer une mort.
+            # Cela garantit que les deux instances voient la victoire simultanément (Phase 5).
             if self.ipc_client is not None:
                 try:
                     self.ipc_client.send({"t": "as", "u": {
@@ -304,7 +319,7 @@ class Game:
                             "tp": type(target).__name__,
                             "x": round(target.x, 2),
                             "y": round(target.y, 2),
-                            "h": 0.0
+                            "h": 0.0 # Force la mort côté distant
                         }
                     }})
                 except Exception:
@@ -369,7 +384,9 @@ class Game:
         if not u.est_vivant():
             return
 
-        # Règle V2 : seul le propriétaire réseau exécute la physique d'une unité
+        # Règle d'Autorité Physique (V2) :
+        # Seul le propriétaire réseau simule le mouvement. Les autres instances ne font qu'afficher
+        # la position reçue par le réseau (Copie Passive). Cela élimine les désynchros de position.
         if self.ipc_client is not None:
             if getattr(u, "proprietaire_reseau", None) != self.local_player_id:
                 return
@@ -596,14 +613,17 @@ class Game:
 
         local_units = {}
         for u in self.units:
+            # Broadcast Filtré (Phase 4) :
+            # On n'envoie que l'état des entités dont on est le MAÎTRE (autorité).
             if getattr(u, "proprietaire_reseau", None) == self.local_player_id:
-                # Propriétaire : on envoie tout l'état (position + hp + cooldown pour l'animation)
+                # On synchronise le cooldown : c'est l'astuce visuelle pour déclencher 
+                # l'animation d'attaque côté distant sans code complexe (Phase 4).
                 local_units[u.uid] = {
                     "tp": type(u).__name__,
                     "x": round(u.x, 2),
                     "y": round(u.y, 2),
                     "h": round(u.hp, 1),
-                    "cd": round(getattr(u, "cooldown", 0), 2)  # Cooldown pour déclencher l'animation d'attaque
+                    "cd": round(getattr(u, "cooldown", 0), 2)  
                 }
         
         if not local_units: return None
