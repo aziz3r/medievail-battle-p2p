@@ -67,6 +67,8 @@ class Game:
         if not getattr(unit, "uid", None):
             self.unit_counters[team] = self.unit_counters.get(team, 0) + 1
             unit.uid = f"{team}_{self.unit_counters[team]}"
+        # ✅ Propriété réseau initiale = l'équipe qui possède l'unité
+        unit.proprietaire_reseau = team
             
         self.units.append(unit)
         try:
