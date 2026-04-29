@@ -487,18 +487,14 @@ class Game:
                 target_unit = next((u for u in self.units if getattr(u, "uid", None) == uid), None)
 
                 if target_unit:
-                    # Mise à jour des points de vie (on prend le minimum pour ne jamais annuler un dégât subi)
-                    if "h" in info:
-                        new_hp = float(info["h"])
-                        # Si l'unité était morte localement et que le réseau la ressuscite, c'est le bug du Mort-Vivant !
-                        if target_unit.hp <= 0 and new_hp > 0:
-                            target_unit.is_zombie = True
+                    # Mise à jour de l'état (Seulement si ce n'est PAS notre propriété réseau !)
+                    if getattr(target_unit, "proprietaire_reseau", None) != self.local_player_id:
+                        if "h" in info:
+                            new_hp = float(info["h"])
+                            if target_unit.hp <= 0 and new_hp > 0:
+                                target_unit.is_zombie = True
+                            target_unit.hp = new_hp
                             
-                        # On applique aveuglément les HP du réseau (création du bug de rollback)
-                        target_unit.hp = new_hp
-                        
-                    # Mise à jour de la position (Seulement si ce n'est pas notre unité locale)
-                    if getattr(target_unit, "team", None) != self.local_player_id:
                         if "x" in info and "y" in info:
                             target_unit.x = max(0.0, min(float(info["x"]), float(self.map.cols - 1)))
                             target_unit.y = max(0.0, min(float(info["y"]), float(self.map.rows - 1)))
@@ -537,17 +533,12 @@ class Game:
 
         local_units = {}
         for u in self.units:
-            if getattr(u, "team", None) == self.local_player_id:
+            if getattr(u, "proprietaire_reseau", None) == self.local_player_id:
                 # Propriétaire : on envoie tout l'état (position + hp)
                 local_units[u.uid] = {
                     "tp": type(u).__name__,
                     "x": round(u.x, 2),
                     "y": round(u.y, 2),
-                    "h": round(u.hp, 1)
-                }
-            else:
-                # Non-propriétaire : on envoie SEULEMENT les HP pour propager les dégâts qu'on a infligés
-                local_units[u.uid] = {
                     "h": round(u.hp, 1)
                 }
         
