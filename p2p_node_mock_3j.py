@@ -65,6 +65,11 @@ def main():
         except KeyboardInterrupt:
             print("\n[MOCK] Arrêt propre.")
             break
+        except OSError as e:
+            if getattr(e, 'winerror', None) == 10054:
+                pass  # Normal sous Windows : destinataire pas encore prêt
+            else:
+                print(f"[MOCK] Erreur réseau: {e}")
         except Exception as e:
             print(f"[MOCK] Erreur : {e}")
 

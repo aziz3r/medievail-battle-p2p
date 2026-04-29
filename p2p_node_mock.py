@@ -42,6 +42,14 @@ def main():
                     sock_ipc.sendto(data, ("127.0.0.1", port_ipc_out))
         except KeyboardInterrupt:
             break
+        except OSError as e:
+            # WinError 10054 (WSAECONNRESET) : le destinataire UDP n'écoute pas encore.
+            # Cela arrive normalement au démarrage si le jeu Python n'est pas encore prêt.
+            # On ignore silencieusement et on continue.
+            if getattr(e, 'winerror', None) == 10054:
+                pass
+            else:
+                print(f"Erreur réseau: {e}")
         except Exception as e:
             print(f"Erreur: {e}")
 
