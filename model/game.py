@@ -666,10 +666,12 @@ class Game:
                                     actor_unit = next((u for u in self.units if getattr(u, "uid", None) == actor_uid), None)
                                     if actor_unit and actor_unit.proprietaire_reseau == local_id:
                                         dist = self.map.distance(actor_unit, target_unit)
-                                        reach = getattr(actor_unit, "range", 1.0)
+                                        # Correction bug portée mêlée : si range=0, get_reach() retourne 1.0 (1 tuile)
+                                        # getattr(range, 1.0) retournait 0.0 pour les mêlées → toutes les attaques annulées
+                                        reach = actor_unit.get_reach() if hasattr(actor_unit, "get_reach") else max(1.0, float(getattr(actor_unit, "range", 1.0)))
                                         # Vérification tardive : la cible est-elle toujours à portée ?
                                         if dist > reach:
-                                            print(f"[{local_id}] Action annulée : cible {uid} trop loin ({dist:.1f} > {reach}).")
+                                            print(f"[{local_id}] Action annulée : cible {uid} trop loin ({dist:.1f} > {reach:.1f}).")
                                         elif getattr(target_unit, "hp", 0) <= 0:
                                             print(f"[{local_id}] Action annulée : cible {uid} morte.")
                                         else:
