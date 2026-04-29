@@ -3,6 +3,7 @@ Moteur de bataille - gère unités, équipes, progression du temps, actions des 
 """
 from __future__ import annotations
 import math
+import time
 from typing import Dict, List, Optional, Iterable, Any
 
 from .map import BattleMap
@@ -22,7 +23,8 @@ class Game:
         
         # --- File d'attente et Verrouillage Réseau (V2) ---
         self.pending_actions: Dict[str, tuple] = {}
-        self.pending_requests: set = set()
+        # Anti-deadlock : on stocke l'heure de la requête pour détecter les timeouts
+        self.pending_requests: Dict[str, float] = {}  # uid -> timestamp (time.time())
         
         # Initialisation de la Propriété Réseau sur la carte (50/50)
         mid_col = self.map.cols // 2
@@ -51,12 +53,29 @@ class Game:
         for team, controller in self.controllers.items():
             self.next_decision_time[team] = 0.0
 
+    def clean_expired_requests(self, timeout: float = 1.5) -> None:
+        """
+        Anti-Starvation : Supprime les requêtes de propriété expirées.
+        Si un paquet réseau se perd, l'unité reste bloquée éternellement.
+        Après 'timeout' secondes sans réponse, on libère l'unité pour une nouvelle tentative.
+        """
+        now = time.time()
+        # On trouve les requêtes dont le timestamp est trop vieux
+        expired = [uid for uid, ts in self.pending_requests.items() if now - ts > timeout]
+        for uid in expired:
+            print(f"[{self.local_player_id}] ⏰ Timeout: Requête annulée pour l'unité {uid}. Nouvelle tentative possible.")
+            del self.pending_requests[uid]
+            # Libérer aussi l'action en attente associée
+            if uid in self.pending_actions:
+                del self.pending_actions[uid]
+
     def request_ownership(self, entity_id: str) -> None:
         """Envoie une requête via IPC pour demander la propriété réseau d'une entité ou d'une case."""
         if entity_id in self.pending_requests:
-            return # Requête déjà envoyée, on patiente
+            return # Requête déjà envoyée, on patiente jusqu'au timeout
             
-        self.pending_requests.add(entity_id)
+        # On enregistre l'heure de la requête (pour le système de timeout)
+        self.pending_requests[entity_id] = time.time()
         if self.ipc_client:
             # Envoi du message spécifique "req_own" avec le demandeur
             self.ipc_client.send({"t": "req_own", "uid": entity_id, "req": self.local_player_id})
@@ -127,11 +146,14 @@ class Game:
         if not self.running:
             return
 
+        # === ANTI-DEADLOCK : Nettoyage des requêtes expirées ===
+        # Si un paquet se perd, l'unité est libérée après 1.5s au lieu de rester bloquée éternellement.
+        if self.ipc_client is not None:
+            self.clean_expired_requests(timeout=1.5)
+
         # === DEBUT SYNCHRONISATION P2P (RECEPTION) ===
         if self.ipc_client is not None:
             try:
-                # Lecture stricte non-bloquante depuis le deamon C
-                # (On suppose que ipc_client.receive() ou une méthode similaire existe et retourne les data)
                 data = self.ipc_client.receive()
                 if data:
                     self.apply_sync_state(data, self.local_player_id)
@@ -510,7 +532,7 @@ class Game:
                                             actor_unit.intent = intent
                                         del self.pending_actions[actor_uid]
                     
-                    self.pending_requests.discard(uid)
+                    self.pending_requests.pop(uid, None)
                 return
                 
             if t != "as":

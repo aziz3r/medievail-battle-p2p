@@ -18,6 +18,13 @@ class BaseController:
         
         # 1. Vérifier la propriété de l'unité actrice
         if getattr(unit, "proprietaire_reseau", None) != local_id:
+            # Option C — Réclamation Légitime :
+            # Si c'est notre propre unité (même équipe) mais que l'adversaire en a le jeton,
+            # on le réclame activement au lieu d'abandonner l'unité.
+            if getattr(unit, "team", None) == local_id:
+                if unit.uid not in game.pending_requests:
+                    print(f"[{local_id}] ♟️ Réclamation de notre unité {unit.uid} "
+                          f"(actuellement détenue par '{unit.proprietaire_reseau}'). Envoi req_own.")
             game.pending_actions[unit.uid] = intent
             game.request_ownership(unit.uid)
             return
