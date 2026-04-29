@@ -16,10 +16,10 @@ def scenario_simple_vs_braindead(controllers=None) -> Game:
     battle_map = BattleMap(rows=rows, cols=cols)
 
     if controllers is None:
-        from presenter.ai import MajorDaft, PredictEinstein
+        from presenter.ai import MajorDaft, CaptainBraindead
         controllers = {
             "A": MajorDaft("A"),
-            "B": PredictEinstein("B"),
+            "B": CaptainBraindead("B"),
         }
 
     game = Game(battle_map, controllers)
@@ -148,11 +148,10 @@ def scenario_bataille_colline(controllers=None) -> Game:
     battle_map = BattleMap(rows=rows, cols=cols, elevation_map=terrain_colline_centrale)
 
     if controllers is None:
-        from presenter.smartAI import GeneralStrategus
-        from presenter.ai import PredictEinstein
+        from presenter.ai import MajorDaft, CaptainBraindead
         controllers = {
-            "A": GeneralStrategus("A"),
-            "B": PredictEinstein("B"),
+            "A": MajorDaft("A"),
+            "B": CaptainBraindead("B"),
         }
 
     game = Game(battle_map, controllers)
@@ -200,9 +199,9 @@ def scenario_deux_camps_eleves(controllers=None) -> Game:
     battle_map = BattleMap(rows=rows, cols=cols, elevation_map=terrain_deux_camps)
 
     if controllers is None:
-        from presenter.ai import AssasinJack, MajorDaft
+        from presenter.ai import MajorDaft, CaptainBraindead
         controllers = {
-            "A": AssasinJack("A"),
+            "A": CaptainBraindead("A"),
             "B": MajorDaft("B"),
         }
 
@@ -246,11 +245,10 @@ def scenario_siege_chateau(controllers=None) -> Game:
     battle_map = BattleMap(rows=rows, cols=cols, elevation_map=terrain_siege_chateau)
 
     if controllers is None:
-        from presenter.ai import CaptainBraindead
-        from presenter.smartAI import GeneralStrategus
+        from presenter.ai import CaptainBraindead, MajorDaft
         controllers = {
             "A": CaptainBraindead("A"),  # Défenseurs (passifs)
-            "B": GeneralStrategus("B"),  # Attaquants (agressifs)
+            "B": MajorDaft("B"),          # Attaquants (agressifs)
         }
 
     game = Game(battle_map, controllers)

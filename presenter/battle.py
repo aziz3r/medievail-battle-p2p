@@ -10,14 +10,12 @@ import os
 
 from model.game import Game
 from model.map import BattleMap
-from .ai import CaptainBraindead, MajorDaft, AssasinJack, PredictEinstein
-from .smartAI import GeneralStrategus
+from .ai import CaptainBraindead, MajorDaft
 from model.scenarios import (
     scenario_simple_vs_braindead,
     scenario_small_terminal,
     scenario_lanchester,
     scenario_bataille_colline,
-    scenario_deux_camps_eleves,
     scenario_deux_camps_eleves,
     scenario_siege_chateau,
     scenario_wonder_duel,
@@ -25,9 +23,6 @@ from model.scenarios import (
 AVAILABLE_AIS = {
     "Braindead": CaptainBraindead,
     "Daft": MajorDaft,
-    "GeneralStrategus": GeneralStrategus,
-    "AssasinJack": AssasinJack,
-    "PredictEinstein": PredictEinstein,
 }
 
 AVAILABLE_SCENARIOS = {
