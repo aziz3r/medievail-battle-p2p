@@ -2,6 +2,7 @@ import socket
 import sys
 import select
 import random
+import json
 
 def main():
     if len(sys.argv) < 6:
@@ -36,6 +37,18 @@ def main():
                 if s == sock_ipc:
                     sock_net.sendto(data, (remote_ip, remote_port))
                     sock_ipc.sendto(b'{"type": "ack", "status": "ok"}', addr)
+                    
+                    # Simulation réseau V2 : Auto-approbation des demandes de propriété
+                    try:
+                        msg = json.loads(data.decode('utf-8'))
+                        if msg.get("t") == "req_own":
+                            uid = msg.get("uid")
+                            if uid:
+                                resp = json.dumps({"t": "own_grant", "uid": uid}).encode('utf-8')
+                                sock_ipc.sendto(resp, ("127.0.0.1", port_ipc_out))
+                    except:
+                        pass
+                        
                 elif s == sock_net:
                     sock_ipc.sendto(data, ("127.0.0.1", port_ipc_out))
         except KeyboardInterrupt:

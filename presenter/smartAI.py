@@ -38,9 +38,9 @@ class GeneralStrategus(BaseController):
         
         for knight in my_knights:
             self._knight_behavior(knight, enemies, game)
-        
+            
         return actions
-    
+
     def _crossbow_behavior(self, crossbow, enemies, game):
         """        
         PRIORITÉS (basées sur efficacité de kill) :
@@ -57,11 +57,11 @@ class GeneralStrategus(BaseController):
         cb_range = float(getattr(crossbow, "range", 5.0))
         
         if dist <= cb_range:
-            crossbow.intent = ("attack", target)
+            self._assign_intent(crossbow, ("attack", target), game)
         else:
             target_x = float(getattr(target, "x", 0.0))
             target_y = float(getattr(target, "y", 0.0))
-            crossbow.intent = ("move_to", target_x, target_y)
+            self._assign_intent(crossbow, ("move_to", target_x, target_y), game)
     
     def _choose_crossbow_target(self, crossbow, enemies, game):
         
@@ -140,11 +140,11 @@ class GeneralStrategus(BaseController):
         pike_range = float(getattr(pikeman, "range", 1.0))
         
         if dist <= pike_range:
-            pikeman.intent = ("attack", target)
+            self._assign_intent(pikeman, ("attack", target), game)
         else:
             target_x = float(getattr(target, "x", 0.0))
             target_y = float(getattr(target, "y", 0.0))
-            pikeman.intent = ("move_to", target_x, target_y)
+            self._assign_intent(pikeman, ("move_to", target_x, target_y), game)
     
     def _choose_pikeman_target(self, pikeman, enemies, game):
         """
@@ -221,11 +221,11 @@ class GeneralStrategus(BaseController):
         knight_range = float(getattr(knight, "range", 1.0))
         
         if dist <= knight_range:
-            knight.intent = ("attack", target)
+            self._assign_intent(knight, ("attack", target), game)
         else:
             target_x = float(getattr(target, "x", 0.0))
             target_y = float(getattr(target, "y", 0.0))
-            knight.intent = ("move_to", target_x, target_y)
+            self._assign_intent(knight, ("move_to", target_x, target_y), game)
     
     def _choose_knight_target(self, knight, enemies, game):
         """
