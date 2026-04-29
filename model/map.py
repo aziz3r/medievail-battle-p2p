@@ -12,7 +12,10 @@ class BattleMap:
         self.rows = rows
         self.cols = cols
         self.elevation_map = elevation_map
-        # Propriété réseau des cases de la carte
+        # --- Architecture V2 : Propriété Réseau des Cases ---
+        # Pourquoi ? Pour éviter que deux joueurs ne construisent ou ne se déplacent 
+        # sur la même case en même temps (conflit d'écriture). 
+        # Chaque case a un 'maître' (A ou B) qui valide ce qui s'y passe.
         self.ownership = [["" for _ in range(cols)] for _ in range(rows)]
 
     def in_bounds(self, x, y):
@@ -22,40 +25,42 @@ class BattleMap:
     def get_elevation(self, x, y):
         """
         Retourne l'élévation à la position (x, y).
-        Par défaut : terrain plat (elevation = 0)
+        Utilisé pour le calcul des bonus de dégâts Lanchester.
         """
         if self.elevation_map is None:
             return 0.0
-
-        # Si elevation_map est une fonction
         if callable(self.elevation_map):
             return float(self.elevation_map(x, y))
-
-        # Si elevation_map est un dict ou une grille
         try:
-            ix = int(round(x))
-            iy = int(round(y))
+            ix, iy = int(round(x)), int(round(y))
             if hasattr(self.elevation_map, '__getitem__'):
                 return float(self.elevation_map.get((ix, iy), 0.0))
         except:
             return 0.0
-
         return 0.0
 
-    # --- Propriété Réseau ---
+    # --- Gestion de la Propriété Réseau (Version 2) ---
+    # Pourquoi ? La Version 1 permettait à n'importe qui de bouger n'importe où (conflits).
+    # La Version 2 impose un 'maître de zone'. Si vous n'êtes pas propriétaire de la case,
+    # vous ne pouvez pas y effectuer d'action autoritaire sans demander le jeton.
 
     def get_owner(self, x, y):
-        """Retourne le propriétaire de la case (x, y)."""
+        """
+        Retourne le propriétaire actuel (A ou B). 
+        Utilisé par l'IA pour savoir si elle peut agir sur cette zone.
+        """
         if not self.in_bounds(x, y):
             return None
         ix, iy = int(round(x)), int(round(y))
-        # Protection supplémentaire contre les débordements d'arrondis
         ix = max(0, min(self.cols - 1, ix))
         iy = max(0, min(self.rows - 1, iy))
         return self.ownership[iy][ix]
 
     def set_owner(self, x, y, owner: str):
-        """Définit le propriétaire de la case (x, y)."""
+        """
+        Transfère la propriété d'une case. 
+        Appelé lors du protocole de négociation 'own_grant'.
+        """
         if not self.in_bounds(x, y):
             return False
         ix, iy = int(round(x)), int(round(y))

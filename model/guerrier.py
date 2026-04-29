@@ -26,21 +26,30 @@ class Guerrier(ABC):
         self.x = float(x)
         self.y = float(y)
 
-        # --- Identifiants pour le réseau ---
+        # --- Architecture V2 : Identifiants Réseau ---
+        # Pourquoi un UID stable ? 
+        # Dans la V1, les objets avaient des IDs différents sur chaque PC. 
+        # Pour que A et B parlent du MÊME chevalier, on lui donne un UID unique (ex: "A_42") 
+        # qui ne change jamais, peu importe le PC.
         team = kwargs.get('team', None)
-        # uid : on laisse le Game l'assigner proprement
         self.uid = kwargs.get('uid', None)
-        # proprietaire_reseau : par défaut l'équipe de l'unité
+        
+        # Propriétaire Réseau (Le 'Jeton' de la V2) :
+        # Au début, l'équipe qui crée l'unité en est le propriétaire.
+        # Seul celui qui a son nom dans 'proprietaire_reseau' peut modifier les HP ou la position.
         self.proprietaire_reseau = team
 
         # stocke aussi tout ce que tu passes en plus (baseMelee, mountedUnits, etc.)
         for k, v in kwargs.items():
             setattr(self, k, v)
 
-    # --- Sérialisation réseau ---
+    # --- Sérialisation Réseau (Le langage commun entre A et B) ---
 
     def to_dict(self) -> dict:
-        """Retourne un dictionnaire JSON-sérialisable pour la synchronisation réseau."""
+        """
+        Convertit l'unité en dictionnaire pour l'envoi via UDP (IPC).
+        On n'envoie que le nécessaire pour économiser de la bande passante.
+        """
         return {
             "uid": self.uid,
             "proprietaire_reseau": self.proprietaire_reseau,
@@ -52,7 +61,11 @@ class Guerrier(ABC):
         }
 
     def update_from_dict(self, data: dict):
-        """Met à jour les attributs réseau depuis un dictionnaire reçu."""
+        """
+        Mise à jour passive (Phase 4).
+        Appelé quand on reçoit un paquet d'un autre joueur qui possède cette unité.
+        On écrase nos données locales par les siennes (Autorité Réseau).
+        """
         if "hp" in data:
             self.hp = float(data["hp"])
         if "x" in data:

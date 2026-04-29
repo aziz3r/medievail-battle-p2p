@@ -471,7 +471,10 @@ class Game:
                 
             t = data.get("t")
             
-            # --- Réception d'une demande de propriété (Le Propriétaire cède) ---
+            # --- PHASE 3 : Négociation (Le Propriétaire cède) ---
+            # Pourquoi ? Un autre joueur demande à contrôler une de nos unités.
+            # On accepte de céder le jeton (autorité) et on lui envoie l'état exact (HP, position)
+            # pour qu'il n'y ait aucune désynchronisation lors de la reprise.
             if t == "req_own":
                 uid = data.get("uid")
                 requester = data.get("req")
@@ -496,7 +499,9 @@ class Game:
                                 })
                 return
             
-            # --- Traitement de l'acceptation de propriété (Le Demandeur reçoit) ---
+            # --- PHASE 3 : Acceptation (Le Demandeur reçoit l'autorité) ---
+            # Pourquoi ? On vient de recevoir le jeton et l'état exact de l'unité.
+            # On met à jour nos données locales pour être en phase parfaite avec l'ancien propriétaire.
             if t == "own_grant":
                 uid = data.get("uid")
                 new_owner = data.get("new_owner")
@@ -508,7 +513,7 @@ class Game:
                         self.map.set_owner(float(x), float(y), new_owner)
                         print(f"[{local_id}] Propriété reçue pour la case {uid}.")
                         
-                        # Validation de l'action en attente pour le déplacement
+                        # Déplacement : on valide l'action qui attendait ce jeton
                         for actor_uid, intent in list(self.pending_actions.items()):
                             if intent[0] == "move_to":
                                 _, tx, ty = intent
@@ -523,7 +528,7 @@ class Game:
                         target_unit = next((u for u in self.units if getattr(u, "uid", None) == uid), None)
                         if target_unit:
                             target_unit.proprietaire_reseau = new_owner
-                            # Mise à jour avec l'état exact (rollback possible)
+                            # Mise à jour avec l'état exact reçu (évite les sauts de position)
                             if "hp" in state:
                                 target_unit.hp = float(state["hp"])
                             if "x" in state:
@@ -532,14 +537,14 @@ class Game:
                                 target_unit.y = float(state["y"])
                             print(f"[{local_id}] Propriété reçue pour {uid}. Etat mis à jour: HP={target_unit.hp}.")
                             
-                            # Validation de l'action en attente (Pédagogique)
-                            # On cherche quelle unité locale attendait cette cible
+                            # Validation de l'attaque en attente
                             for actor_uid, intent in list(self.pending_actions.items()):
                                 if intent[0] == "attack" and getattr(intent[1], "uid", None) == uid:
                                     actor_unit = next((u for u in self.units if getattr(u, "uid", None) == actor_uid), None)
                                     if actor_unit and actor_unit.proprietaire_reseau == local_id:
                                         dist = self.map.distance(actor_unit, target_unit)
                                         reach = getattr(actor_unit, "range", 1.0)
+                                        # Vérification tardive : la cible est-elle toujours à portée ?
                                         if dist > reach:
                                             print(f"[{local_id}] Action annulée : cible {uid} trop loin ({dist:.1f} > {reach}).")
                                         elif getattr(target_unit, "hp", 0) <= 0:
