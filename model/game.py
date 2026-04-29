@@ -26,6 +26,14 @@ class Game:
         # Cette file stocke les actions (ex: attaquer une cible) en attendant d'en avoir le droit.
         self.pending_actions: Dict[str, tuple] = {}
 
+        # === Scénario du Duel Simultané : Verrou d'Attaque ===
+        # Problème : Si B attaque Pc3 et C réclame Pc3 au même moment,
+        # B NE DOIT PAS rendre Pc3 immédiatement. Il doit finir son calcul de dégâts d'abord.
+        # Sinon : B envoie un jeton "Pc3 est à vous" à C alors que Pc3 vient d'être tué par B.
+        # Solution : on verrouille la cible pendant _do_attack, puis on traite les requêtes différées.
+        self.locked_units: set = set()          # UIDs actuellement en cours d'attaque (verrou atomique)
+        self.deferred_req_own: Dict[str, dict] = {}  # uid -> paquet req_own en attente du verrou
+
         # Anti-deadlock (Système de Timeout - Option B) : 
         # Si un paquet UDP est perdu, l'unité pourrait rester bloquée "en attente" pour toujours.
         # On stocke l'heure de la requête pour la libérer après 1.5s si aucune réponse n'arrive.
@@ -285,6 +293,14 @@ class Game:
             k_elev = 1.0
 
         hp_before = float(getattr(target, "hp", 0.0))
+
+        # === Verrou d'Attaque (Scénario Duel Simultané) ===
+        # On verrouille la cible AVANT d'appliquer les dégâts.
+        # Si C réclame Pc3 pendant ce calcul, sa requête sera différée et non ignorée.
+        target_uid = getattr(target, "uid", None)
+        if target_uid:
+            self.locked_units.add(target_uid)
+
         dmg = attacker.attaquer(target, dist, k_elev)
         hp_after = float(getattr(target, "hp", 0.0))
 
@@ -324,6 +340,17 @@ class Game:
                     }})
                 except Exception:
                     pass
+
+        # === Déverrouillage + Traitement des Requêtes Différées ===
+        # L'attaque est terminée. On libère le verrou et on traite
+        # la requête de C (riposte de Pc3) maintenant que l'état final est connu.
+        # Scénario : si Pc3 est mort, C va découvrir lors de la vérification tardive que la riposte est annulée.
+        if target_uid:
+            self.locked_units.discard(target_uid)
+            if target_uid in self.deferred_req_own:
+                print(f"[{self.local_player_id}] 🔓 Verrou levé sur {target_uid}. Traitement de la requête différée de riposte.")
+                deferred_data = self.deferred_req_own.pop(target_uid)
+                self.apply_sync_state(deferred_data, self.local_player_id)
 
         self.logs.append(
             f"{att_team}:{att_name} → {tgt_team}:{tgt_name} | "
@@ -491,6 +518,18 @@ class Game:
                     else:
                         target_unit = next((u for u in self.units if getattr(u, "uid", None) == uid), None)
                         if target_unit and getattr(target_unit, "proprietaire_reseau", None) == local_id:
+
+                            # === Verrou d'Attaque : Requête Différée ===
+                            # Si l'unité est verrouillée (attaque en cours), on NE cède PAS le jeton
+                            # immédiatement. On met la requête en attente.
+                            # Scénario : B attaque Pc3, C réclame Pc3 pour riposter.
+                            # B garde Pc3 le temps de finir l'attaque, puis rend Pc3 à C.
+                            # C découvre alors que Pc3 est mort → riposte annulée naturellement.
+                            if uid in self.locked_units:
+                                print(f"[{local_id}] 🔒 Unité {uid} verrouillée (attaque en cours). Requête de '{requester}' différée.")
+                                self.deferred_req_own[uid] = data  # On garde le paquet pour plus tard
+                                return
+
                             target_unit.proprietaire_reseau = requester
                             if self.ipc_client:
                                 self.ipc_client.send({
