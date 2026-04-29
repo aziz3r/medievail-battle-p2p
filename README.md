@@ -1,27 +1,35 @@
 # MedievAIl Battle : Infrastructure Répartie pour Compétition d'IAs Distribuées
 
-## 📌 Architecture Globale
+## 📌 Architecture Globale et Topologie des Connexions
 
 Ce projet implémente une **infrastructure réseau décentralisée à large échelle** (pur Pair-à-Pair) pour un jeu de bataille stratégique. Le cœur du système repose sur une **séparation stricte des responsabilités en deux processus** distincts par machine afin d'isoler la logique de jeu de la gestion réseau :
 1. **Processus Applicatif (Python)** : Gère la logique métier, l'Intelligence Artificielle, l'interface graphique et l'état de la partie.
 2. **Processus Réseau (C)** : Gère exclusivement les communications inter-noeuds (sockets UDP/TCP asynchrones), le routage des paquets, et le maintien de la cohérence de l'état (protocole de consensus).
 
-Les deux processus communiquent localement via un mécanisme de **Communication Inter-Processus (IPC)** (typiquement des sockets locaux). Cette architecture garantit que la logique de jeu n'est jamais bloquée par les lenteurs réseau, et inversement.
+### Comment les joueurs sont-ils connectés ?
+Pour comprendre concrètement comment Joueur 1 et Joueur 2 interagissent, voici la topologie exacte des processus. Chaque joueur exécute **deux programmes en parallèle** :
+- En interne (sur la même machine), le programme Python et le Daemon C se parlent via un mécanisme de **Communication Inter-Processus (IPC)** (typiquement des sockets UDP locaux).
+- En externe (à travers le réseau), **seuls les Daemons C se parlent** via des **sockets distants P2P UDP**. 
+
+Le processus Python n'a donc jamais conscience d'être sur un réseau distant : il se contente d'envoyer ses intentions d'actions à son Daemon C local, qui se charge ensuite de négocier avec le Daemon C de l'adversaire.
 
 ```mermaid
 graph TD
-    subgraph Distant ["Nœud P2P Distant (Adversaire)"]
-        DaemonDist["Processus Réseau C Distant"]
-    end
-
-    subgraph Local ["Nœud P2P Local (Votre Machine)"]
-        ProcPy["Processus Applicatif / IA <br/> Python"]
-        ProcC["Processus Réseau <br/> C"]
+    subgraph J1 ["🖥️ Machine Joueur 1 (Hôte)"]
+        Py1["🐍 Programme Jeu / IA (Python)"]
+        C1["⚙️ Daemon Réseau (C)"]
         
-        ProcPy <-->|"IPC (Sockets locaux UDP)"| ProcC
+        Py1 <-->|"Sockets Locaux (IPC)"| C1
     end
 
-    ProcC <-->|"API Sockets P2P <br/> UDP Asynchrone"| DaemonDist
+    subgraph J2 ["💻 Machine Joueur 2 (Client)"]
+        Py2["🐍 Programme Jeu / IA (Python)"]
+        C2["⚙️ Daemon Réseau (C)"]
+        
+        Py2 <-->|"Sockets Locaux (IPC)"| C2
+    end
+
+    C1 <-->|"Réseau Pair-à-Pair (P2P)<br>Sockets UDP Distants"| C2
 ```
 
 ## 🔄 Diagramme de Séquence et Cohérence
