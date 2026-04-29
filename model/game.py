@@ -531,6 +531,10 @@ class Game:
                             # Règle V2 : un mort reste mort. On ignore les paquets périmés.
                             if not (target_unit.hp <= 0 and new_hp > 0):
                                 target_unit.hp = new_hp
+
+                        # Synchronisation du cooldown pour déclencher l'animation d'attaque à distance
+                        if "cd" in info and hasattr(target_unit, "cooldown"):
+                            target_unit.cooldown = float(info["cd"])
                             
                         if "x" in info and "y" in info:
                             target_unit.x = max(0.0, min(float(info["x"]), float(self.map.cols - 1)))
@@ -571,12 +575,13 @@ class Game:
         local_units = {}
         for u in self.units:
             if getattr(u, "proprietaire_reseau", None) == self.local_player_id:
-                # Propriétaire : on envoie tout l'état (position + hp)
+                # Propriétaire : on envoie tout l'état (position + hp + cooldown pour l'animation)
                 local_units[u.uid] = {
                     "tp": type(u).__name__,
                     "x": round(u.x, 2),
                     "y": round(u.y, 2),
-                    "h": round(u.hp, 1)
+                    "h": round(u.hp, 1),
+                    "cd": round(getattr(u, "cooldown", 0), 2)  # Cooldown pour déclencher l'animation d'attaque
                 }
         
         if not local_units: return None
