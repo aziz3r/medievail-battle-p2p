@@ -61,6 +61,12 @@ class Game:
         # Si un paquet UDP est perdu, l'unité pourrait rester bloquée "en attente" pour toujours.
         # On stocke l'heure de la requête pour la libérer après 1.5s si aucune réponse n'arrive.
         self.pending_requests: Dict[str, float] = {}  # uid -> timestamp (time.time())
+
+        # Cooldown après Rejet (CAS B du diagramme) :
+        # Quand on reçoit un 'own_reject', on attend 0.5s avant de renvoyer une requête.
+        # Cela évite de spammer le réseau pendant que l'unité est verrouillée côté distant.
+        # Format : {uid: timestamp_avant_lequel_on_ne_renvoie_pas}
+        self.rejected_requests: Dict[str, float] = {}  # uid -> retry_after (time.time() + 0.5)
         
         # Initialisation de la Propriété Réseau sur la carte (Phase 1)
         # On divise la carte en zones d'influence au démarrage pour éviter les conflits immédiats.
@@ -113,9 +119,17 @@ class Game:
         On ne force plus l'écriture locale (V1), on demande poliment l'autorisation (V2).
         """
         if entity_id in self.pending_requests:
-            return # Requête déjà envoyée, on patiente jusqu'au timeout
-            
-        # On enregistre l'heure de la requête pour le système anti-starvation
+            return  # Requête déjà en vol, on patiente jusqu'au timeout
+
+        # Respect du cooldown après rejet (CAS B du diagramme) :
+        # Si on vient de recevoir un 'own_reject', on attend 0.5s avant de renvoyer.
+        # Cela correspond à "la boucle recommence après un léger délai" dans le diagramme.
+        if entity_id in self.rejected_requests:
+            if time.time() < self.rejected_requests[entity_id]:
+                return  # Cooldown actif, on ne spam pas le réseau
+            del self.rejected_requests[entity_id]  # Cooldown écoulé, on peut réessayer
+
+        # Enregistrement de la requête pour le système anti-starvation
         self.pending_requests[entity_id] = time.time()
         if self.ipc_client:
             # Envoi du message spécifique "req_own" (Request Ownership)
@@ -539,9 +553,6 @@ class Game:
             t = data.get("t")
             
             # --- PHASE 3 : Négociation (Le Propriétaire cède) ---
-            # Pourquoi ? Un autre joueur demande à contrôler une de nos unités.
-            # On accepte de céder le jeton (autorité) et on lui envoie l'état exact (HP, position)
-            # pour qu'il n'y ait aucune désynchronisation lors de la reprise.
             if t == "req_own":
                 uid = data.get("uid")
                 requester = data.get("req")
@@ -559,23 +570,29 @@ class Game:
                         target_unit = next((u for u in self.units if getattr(u, "uid", None) == uid), None)
                         if target_unit and getattr(target_unit, "proprietaire_reseau", None) == local_id:
 
-                            # --- GARDE DU VERROU : Requête Différée (Duel Simultané) ---
-                            # On arrive ici quand C demande la propriété de Pc3 pour riposter.
-                            # MAIS B est peut-être en train de calculer ses dégâts sur Pc3
-                            # au même tick. Si Pc3 est dans locked_units, on ne cède pas.
+                            # --- GARDE DU VERROU : Rejet Explicite (CAS B du diagramme) ---
+                            # On arrive ici quand C demande la propriété de Pc3, MAIS Pc3 est
+                            # verrouillé (Pb1 est en train de calculer ses dégâts sur Pc3).
                             #
-                            # Pourquoi ? Car si on cèdait maintenant :
-                            #   a) B n'aurait plus l'autorité pour finir son calcul de dégâts.
-                            #   b) C déclencherait la riposte AVANT de savoir que Pc3 est mort.
-                            #
-                            # Solution : on stocke le paquet de C dans deferred_req_own.
-                            # Quand _do_attack terminera, il traitera ce paquet avec les HP réels.
+                            # Conformément au diagramme de séquence :
+                            #   -> On stocke la requête dans deferred_req_own (auto-traitement à la levée du verrou)
+                            #   -> On envoie UN MESSAGE EXPLICITE 'own_reject' au demandeur (C)
+                            #      pour lui signaler que la propriété est en cours d'utilisation.
+                            #   -> C reçoit ce rejet, applique un cooldown de 0.5s (pas de spam),
+                            #      et la boucle loop du diagramme recommence après ce délai.
                             if uid in self.locked_units:
-                                print(f"[{local_id}] 🔒 Unité {uid} verrouillée (attaque en cours). Requête de '{requester}' différée.")
-                                self.deferred_req_own[uid] = data  # Stockage de la requête de C
-                                return  # On ne fait RIEN d'autre pour l'instant
+                                print(f"[{local_id}] 🔒 Unité {uid} verrouillée. Rejet envoyé à '{requester}'.")
+                                self.deferred_req_own[uid] = data  # Auto-traitement à la levée du verrou
+                                if self.ipc_client:
+                                    self.ipc_client.send({
+                                        "t": "own_reject",
+                                        "uid": uid,
+                                        "req": requester,
+                                        "reason": "locked"
+                                    })
+                                return
 
-                            # Pc3 n'est pas verrouillé : transfert normal
+                            # Pc3 n'est pas verrouillé : transfert normal (CAS A)
                             target_unit.proprietaire_reseau = requester
                             if self.ipc_client:
                                 self.ipc_client.send({
@@ -583,11 +600,32 @@ class Game:
                                     "state": {"x": target_unit.x, "y": target_unit.y, "hp": target_unit.hp}
                                 })
                 return
-            
+
+            # --- CAS B : Réception d'un Rejet (Duel Simultané) ---
+            # Conformément au diagramme de séquence, quand le Daemon Distant nous informe
+            # que la propriété de X est indisponible (unité verrouillée par une attaque),
+            # on reçoit ici le message 'own_reject'.
+            #
+            # Actions à effectuer (correspond à "La boucle recommence après un délai") :
+            #   1. L'IA reste bloquée : pending_actions[uid] est conservé (l'intention est toujours là)
+            #   2. On libère pending_requests[uid] pour permettre un retry
+            #   3. On enregistre un cooldown de 0.5s : on ne re-spam pas immédiatement
+            #   4. Au prochain tick de l'IA, request_ownership() vérifiera ce cooldown avant de renvoyer
+            if t == "own_reject":
+                uid = data.get("uid")
+                if uid:
+                    print(f"[{local_id}] ⏳ Rejet reçu pour {uid}. L'IA reste bloquée. Retry dans 0.5s.")
+                    # Libérer pending_requests pour autoriser un futur retry
+                    self.pending_requests.pop(uid, None)
+                    # Programmer le cooldown (évite le spam réseau)
+                    self.rejected_requests[uid] = time.time() + 0.5
+                return
+
             # --- PHASE 3 : Acceptation (Le Demandeur reçoit l'autorité) ---
             # Pourquoi ? On vient de recevoir le jeton et l'état exact de l'unité.
             # On met à jour nos données locales pour être en phase parfaite avec l'ancien propriétaire.
             if t == "own_grant":
+
                 uid = data.get("uid")
                 new_owner = data.get("new_owner")
                 state = data.get("state", {})
