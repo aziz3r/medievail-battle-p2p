@@ -58,8 +58,8 @@ class Game:
             
         self.pending_requests.add(entity_id)
         if self.ipc_client:
-            # Envoi du message spécifique "req_own"
-            self.ipc_client.send_message({"t": "req_own", "uid": entity_id})
+            # Envoi du message spécifique "req_own" avec le demandeur
+            self.ipc_client.send_message({"t": "req_own", "uid": entity_id, "req": self.local_player_id})
 
     def add_unit(self, unit: Guerrier, team: str, row: int, col: int) -> None:
         unit.team = team
@@ -407,17 +407,71 @@ class Game:
                 
             t = data.get("t")
             
-            # --- Traitement de l'acceptation de propriété (V2) ---
-            if t == "own_grant":
+            # --- Réception d'une demande de propriété (Le Propriétaire cède) ---
+            if t == "req_own":
                 uid = data.get("uid")
-                if uid:
+                requester = data.get("req")
+                if uid and requester:
                     if uid.startswith("tile_"):
                         _, x, y = uid.split("_")
-                        self.map.set_owner(float(x), float(y), local_id)
+                        if self.map.get_owner(float(x), float(y)) == local_id:
+                            self.map.set_owner(float(x), float(y), requester)
+                            if self.ipc_client:
+                                self.ipc_client.send_message({
+                                    "t": "own_grant", "uid": uid, "new_owner": requester,
+                                    "state": {"x": float(x), "y": float(y)}
+                                })
+                    else:
+                        target_unit = next((u for u in self.units if getattr(u, "uid", None) == uid), None)
+                        if target_unit and getattr(target_unit, "proprietaire_reseau", None) == local_id:
+                            target_unit.proprietaire_reseau = requester
+                            if self.ipc_client:
+                                self.ipc_client.send_message({
+                                    "t": "own_grant", "uid": uid, "new_owner": requester,
+                                    "state": {"x": target_unit.x, "y": target_unit.y, "hp": target_unit.hp}
+                                })
+                return
+            
+            # --- Traitement de l'acceptation de propriété (Le Demandeur reçoit) ---
+            if t == "own_grant":
+                uid = data.get("uid")
+                new_owner = data.get("new_owner")
+                state = data.get("state", {})
+                
+                if uid and new_owner:
+                    if uid.startswith("tile_"):
+                        _, x, y = uid.split("_")
+                        self.map.set_owner(float(x), float(y), new_owner)
+                        print(f"[{local_id}] Propriété reçue pour la case {uid}.")
                     else:
                         target_unit = next((u for u in self.units if getattr(u, "uid", None) == uid), None)
                         if target_unit:
-                            target_unit.proprietaire_reseau = local_id
+                            target_unit.proprietaire_reseau = new_owner
+                            # Mise à jour avec l'état exact (rollback possible)
+                            if "hp" in state:
+                                target_unit.hp = float(state["hp"])
+                            if "x" in state:
+                                target_unit.x = float(state["x"])
+                            if "y" in state:
+                                target_unit.y = float(state["y"])
+                            print(f"[{local_id}] Propriété reçue pour {uid}. Etat mis à jour: HP={target_unit.hp}.")
+                            
+                            # Validation de l'action en attente (Pédagogique)
+                            # On cherche quelle unité locale attendait cette cible
+                            for actor_uid, intent in list(self.pending_actions.items()):
+                                if intent[0] == "attack" and getattr(intent[1], "uid", None) == uid:
+                                    actor_unit = next((u for u in self.units if getattr(u, "uid", None) == actor_uid), None)
+                                    if actor_unit and actor_unit.proprietaire_reseau == local_id:
+                                        dist = self.map.distance(actor_unit, target_unit)
+                                        reach = getattr(actor_unit, "range", 1.0)
+                                        if dist > reach:
+                                            print(f"[{local_id}] Action annulée : cible {uid} trop loin ({dist:.1f} > {reach}).")
+                                        elif getattr(target_unit, "hp", 0) <= 0:
+                                            print(f"[{local_id}] Action annulée : cible {uid} morte.")
+                                        else:
+                                            print(f"[{local_id}] Action validée pour {actor_uid} sur {uid}.")
+                                            actor_unit.intent = intent
+                                        del self.pending_actions[actor_uid]
                     
                     self.pending_requests.discard(uid)
                 return
