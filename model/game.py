@@ -26,13 +26,36 @@ class Game:
         # Cette file stocke les actions (ex: attaquer une cible) en attendant d'en avoir le droit.
         self.pending_actions: Dict[str, tuple] = {}
 
-        # === Scénario du Duel Simultané : Verrou d'Attaque ===
-        # Problème : Si B attaque Pc3 et C réclame Pc3 au même moment,
-        # B NE DOIT PAS rendre Pc3 immédiatement. Il doit finir son calcul de dégâts d'abord.
-        # Sinon : B envoie un jeton "Pc3 est à vous" à C alors que Pc3 vient d'être tué par B.
-        # Solution : on verrouille la cible pendant _do_attack, puis on traite les requêtes différées.
-        self.locked_units: set = set()          # UIDs actuellement en cours d'attaque (verrou atomique)
-        self.deferred_req_own: Dict[str, dict] = {}  # uid -> paquet req_own en attente du verrou
+        # =========================================================================
+        # NOUVEAU : Scénario du "Duel Simultané" — Problème de Propriété Concurrente
+        # =========================================================================
+        # CONTEXTE :
+        #   - Pb1 (Armée B) tire une flèche sur Pc3 (Armée C).
+        #   - Pour infliger des dégâts à Pc3, B a demandé et obtenu la propriété de Pc3.
+        #   - AU MÊMe MOMENT, l'IA C décide que Pc3 doit riposter sur Pb1.
+        #   - C réclame donc Pc3 à B via un 'req_own'.
+        #
+        # PROBLÈME SANS CE MéCANISME :
+        #   - Si B rend Pc3 immédiatement à C, B ne peut plus appliquer ses dégâts.
+        #   - Ou pire : B applique les dégâts ET C aussi (double-dégât / désynchronisation).
+        #   - Si B tue Pc3 PUIS rend le jeton, C pourrait quand même déclencher la riposte
+        #     sur un personnage déjà mort (zombie d'attaque).
+        #
+        # SOLUTION : Le Verrou d'Attaque Atomique
+        #   1. B verrouille Pc3 au moment exact où il commence le calcul de dégâts.
+        #   2. La requête de riposte de C est mise en file d'attente (différée), pas ignorée.
+        #   3. Quand B a fini (Pc3 possède ses HP finaux), il libère le verrou.
+        #   4. B traite alors la requête de C avec l'état réel de Pc3 (mort ou blessé).
+        #   5. C reçoit le jeton + état final -> si Pc3 est mort, la riposte est annulée.
+        #
+        self.locked_units: set = set()
+        # ^ UIDs des unités actuellement en train de subir un calcul de dégâts.
+        #   Pendant qu'un UID est dans ce set, aucun transfert de propriété n'est autorisé.
+
+        self.deferred_req_own: Dict[str, dict] = {}
+        # ^ Si une requête 'req_own' arrive pour une unité verrouillée, on la stocke ici.
+        #   Format : {uid: paquet_req_own_original}
+        #   Elle sera retraiterée dès que le verrou sera levé.
 
         # Anti-deadlock (Système de Timeout - Option B) : 
         # Si un paquet UDP est perdu, l'unité pourrait rester bloquée "en attente" pour toujours.
@@ -294,12 +317,17 @@ class Game:
 
         hp_before = float(getattr(target, "hp", 0.0))
 
-        # === Verrou d'Attaque (Scénario Duel Simultané) ===
-        # On verrouille la cible AVANT d'appliquer les dégâts.
-        # Si C réclame Pc3 pendant ce calcul, sa requête sera différée et non ignorée.
+        # --- ETAPE 1 : Poser le Verrou (Duel Simultané) ---
+        # On extrait l'UID de la cible (ex: "Pc3") et on l'ajoute au set locked_units.
+        # Ce verrou est "atomique" pour notre boucle Python :
+        # pendant que _do_attack s'exécute, aucun autre code Python ne s'exécute en parallèle
+        # (le GIL Python nous garantit cela). Le verrou est donc cohérent.
+        # 
+        # Si C envoie un 'req_own' pour Pc3 via le réseau PENDANT ce tick,
+        # apply_sync_state le verra dans locked_units et différera la requête.
         target_uid = getattr(target, "uid", None)
         if target_uid:
-            self.locked_units.add(target_uid)
+            self.locked_units.add(target_uid)  # 🔒 Verrou posé : Pc3 est intouchable
 
         dmg = attacker.attaquer(target, dist, k_elev)
         hp_after = float(getattr(target, "hp", 0.0))
@@ -341,15 +369,27 @@ class Game:
                 except Exception:
                     pass
 
-        # === Déverrouillage + Traitement des Requêtes Différées ===
-        # L'attaque est terminée. On libère le verrou et on traite
-        # la requête de C (riposte de Pc3) maintenant que l'état final est connu.
-        # Scénario : si Pc3 est mort, C va découvrir lors de la vérification tardive que la riposte est annulée.
+        # --- ETAPE 2 : Lever le Verrou et Traiter la Riposte Différée ---
+        # À ce stade, attaquer() a été appelée. Pc3 a ses HP FINAUX (mort ou blessé).
+        # On peut maintenant libérer le verrou en toute sécurité.
+        #
+        # CAS 1 : Pc3 est mort (hp_after <= 0)
+        #   -> On libère le verrou et on traite la requête de C.
+        #   -> apply_sync_state va envoyer 'own_grant' à C avec hp=0.
+        #   -> C reçoit le jeton + état. Vérification tardive : Pc3 est mort.
+        #   -> La riposte de Pc3 est ANNULéE. Cohérence garantie.
+        #
+        # CAS 2 : Pc3 est blessé mais vivant
+        #   -> C reçoit le jeton + les HP réels de Pc3.
+        #   -> C peut déclencher la riposte normalement.
         if target_uid:
-            self.locked_units.discard(target_uid)
+            self.locked_units.discard(target_uid)  # 🔓 Verrou levé : Pc3 est libre
             if target_uid in self.deferred_req_own:
+                # Une requête de C attendait ce moment ! On la traite maintenant.
                 print(f"[{self.local_player_id}] 🔓 Verrou levé sur {target_uid}. Traitement de la requête différée de riposte.")
                 deferred_data = self.deferred_req_own.pop(target_uid)
+                # On rappelle apply_sync_state avec le paquet de C.
+                # C va recevoir le 'own_grant' avec l'état FINAL (post-attaque) de Pc3.
                 self.apply_sync_state(deferred_data, self.local_player_id)
 
         self.logs.append(
@@ -519,17 +559,23 @@ class Game:
                         target_unit = next((u for u in self.units if getattr(u, "uid", None) == uid), None)
                         if target_unit and getattr(target_unit, "proprietaire_reseau", None) == local_id:
 
-                            # === Verrou d'Attaque : Requête Différée ===
-                            # Si l'unité est verrouillée (attaque en cours), on NE cède PAS le jeton
-                            # immédiatement. On met la requête en attente.
-                            # Scénario : B attaque Pc3, C réclame Pc3 pour riposter.
-                            # B garde Pc3 le temps de finir l'attaque, puis rend Pc3 à C.
-                            # C découvre alors que Pc3 est mort → riposte annulée naturellement.
+                            # --- GARDE DU VERROU : Requête Différée (Duel Simultané) ---
+                            # On arrive ici quand C demande la propriété de Pc3 pour riposter.
+                            # MAIS B est peut-être en train de calculer ses dégâts sur Pc3
+                            # au même tick. Si Pc3 est dans locked_units, on ne cède pas.
+                            #
+                            # Pourquoi ? Car si on cèdait maintenant :
+                            #   a) B n'aurait plus l'autorité pour finir son calcul de dégâts.
+                            #   b) C déclencherait la riposte AVANT de savoir que Pc3 est mort.
+                            #
+                            # Solution : on stocke le paquet de C dans deferred_req_own.
+                            # Quand _do_attack terminera, il traitera ce paquet avec les HP réels.
                             if uid in self.locked_units:
                                 print(f"[{local_id}] 🔒 Unité {uid} verrouillée (attaque en cours). Requête de '{requester}' différée.")
-                                self.deferred_req_own[uid] = data  # On garde le paquet pour plus tard
-                                return
+                                self.deferred_req_own[uid] = data  # Stockage de la requête de C
+                                return  # On ne fait RIEN d'autre pour l'instant
 
+                            # Pc3 n'est pas verrouillé : transfert normal
                             target_unit.proprietaire_reseau = requester
                             if self.ipc_client:
                                 self.ipc_client.send({
