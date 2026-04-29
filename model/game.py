@@ -231,6 +231,10 @@ class Game:
             return
         if not hasattr(attacker, "attaquer"):
             return
+        # Règle V2 : on ne peut pas modifier les HP d'une unité qu'on ne possède pas
+        if self.ipc_client is not None:
+            if getattr(target, "proprietaire_reseau", None) != self.local_player_id:
+                return
 
         dist = self.map.distance(attacker, target)
 
@@ -329,6 +333,11 @@ class Game:
     def update_unit(self, u, dt):
         if not u.est_vivant():
             return
+
+        # Règle V2 : seul le propriétaire réseau exécute la physique d'une unité
+        if self.ipc_client is not None:
+            if getattr(u, "proprietaire_reseau", None) != self.local_player_id:
+                return
 
         if u.intent is None:
             return
