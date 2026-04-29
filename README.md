@@ -109,3 +109,34 @@ Ouvrez 4 terminaux à la racine du projet :
    *(Choix 6 -> Sélectionner Zone 4 -> REJOINDRE)*
 
 Dès que la partie commence, testez de placer des unités de chaque côté : le système fonctionnera en concurrence totale. Puisqu'il s'agit d'un réseau pur UDP sans blocage (Best-Effort), des actions brutales et simultanées pourront causer d'éventuelles désynchronisations (fantômes, rubber-banding), validant ainsi que le protocole ne bloque pas l'exécution.
+
+---
+
+## 🚀 Comment tester la Version 2 (P2P Synchronisé)
+
+Ouvrez **4 terminaux** à la racine du projet et lancez les commandes dans cet ordre :
+
+**Terminal 1 — Routeur réseau Joueur 1 (Hôte)**
+```bash
+py p2p_node_mock.py 6000 127.0.0.1 6001 5000 5001
+```
+
+**Terminal 2 — Jeu Joueur 1**
+```bash
+py launch.py
+```
+*(Dans le menu : Multijoueur P2P → Choisir une Zone → **CRÉER**)*
+
+**Terminal 3 — Routeur réseau Joueur 2 (Client)**
+```bash
+py p2p_node_mock.py 6001 127.0.0.1 6000 5002 5003
+```
+
+**Terminal 4 — Jeu Joueur 2**
+```bash
+py launch.py
+```
+*(Dans le menu : Multijoueur P2P → Choisir une Zone → **REJOINDRE**)*
+
+> **Note :** Si les deux joueurs choisissent la même zone, le système de collision la résout automatiquement en déplaçant le client à la zone opposée.
+

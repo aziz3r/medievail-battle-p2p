@@ -8,18 +8,12 @@ from .ai import (
     BaseController,
     CaptainBraindead,
     MajorDaft,
-    AssasinJack,
-    PredictEinstein,
     SimpleAI
 )
-from .smartAI import GeneralStrategus
 
 __all__ = [
     'BaseController',
     'CaptainBraindead',
     'MajorDaft',
-    'AssasinJack',
-    'PredictEinstein',
     'SimpleAI',
-    'GeneralStrategus',
 ]

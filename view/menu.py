@@ -19,8 +19,7 @@ from model.scenarios import (
 )
 from model.army_compositions import ARMY_COMPOSITIONS, COMPOSITION_DESCRIPTIONS
 from model.terrain import TERRAIN_TYPES
-from presenter.ai import CaptainBraindead, MajorDaft, AssasinJack, PredictEinstein
-from presenter.smartAI import GeneralStrategus
+from presenter.ai import CaptainBraindead, MajorDaft
 from .views import GUI
 from network_ipc import IPCClient
 import subprocess
@@ -37,9 +36,6 @@ ACCENT_COLOR = (255, 215, 0)
 AVAILABLE_AIS = {
     "Captain BRAINDEAD": CaptainBraindead,
     "Major DAFT": MajorDaft,
-    "General STRATEGUS": GeneralStrategus,
-    "Assasin JACK": AssasinJack,
-    "Predict EINSTEIN": PredictEinstein,
 }
 
 AVAILABLE_SCENARIOS = {
@@ -54,9 +50,6 @@ AVAILABLE_SCENARIOS = {
 AI_DESCRIPTIONS = {
     "Captain BRAINDEAD": "Statique - N'attaque que si ennemi en vue",
     "Major DAFT": "Agressive - Attaque le plus proche",
-    "General STRATEGUS": "Tactique - Ciblage intelligent par type",
-    "Assasin JACK": "Focus - Cible le plus faible",
-    "Predict EINSTEIN": "Prédictive - Simule 5 coups à l'avance",
 }
 
 
@@ -704,6 +697,16 @@ class MainMenu:
         if not remote_choice:
             print("[ERR] Timeout synchro lobby")
             return
+
+        # --- Résolution des collisions de zone ---
+        if my_choice["zone"] == remote_choice["zone"]:
+            print(f"[NET] Collision de zone détectée (Zone {my_choice['zone']}) !")
+            if is_host:
+                print("[NET] L'hôte conserve sa zone, le client est déplacé à l'opposé.")
+                remote_choice["zone"] = 5 - remote_choice["zone"]
+            else:
+                print("[NET] Le client est déplacé à l'opposé car l'hôte a priorité.")
+                my_choice["zone"] = 5 - my_choice["zone"]
 
         # --- 2. Initialisation du Jeu ---
         from model.map import BattleMap

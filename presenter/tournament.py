@@ -10,16 +10,12 @@ from model.scenarios import (
     scenario_deux_camps_eleves,
     scenario_siege_chateau,
 )
-from .ai import CaptainBraindead, MajorDaft, AssasinJack, PredictEinstein
-from .smartAI import GeneralStrategus
+from .ai import CaptainBraindead, MajorDaft
 
 # --- CONFIGURATION ---
 AVAILABLE_GENERALS = {
     "Braindead": CaptainBraindead,
     "Daft": MajorDaft,
-    "GeneralStrategus": GeneralStrategus,
-    "AssasinJack": AssasinJack,
-    "PredictEinstein": PredictEinstein,
 }
 
 AVAILABLE_SCENARIOS = {
@@ -225,7 +221,7 @@ class Tournament:
 if __name__ == "__main__":
     # --- CONFIGURATION DU LANCEMENT ---
     # Liste des participants
-    ai_participants = ["Braindead", "Daft", "GeneralStrategus", "AssasinJack"] 
+    ai_participants = ["Braindead", "Daft"]
    
     
     scenarios = ["Scenario_Standard","Scenario_Dur"]
