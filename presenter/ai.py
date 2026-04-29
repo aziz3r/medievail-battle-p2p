@@ -22,24 +22,18 @@ class BaseController:
             game.request_ownership(unit.uid)
             return
             
-        # 2. Vérifier la propriété de la cible
+        # 2. Pour un déplacement : le propriétaire de l'unité peut toujours la déplacer librement
+        #    (pas besoin de propriété de case, c'est réservé à la construction)
         kind = intent[0]
-        if kind == "move_to":
-            _, tx, ty = intent
-            # Demande la propriété de la case
-            if game.map.get_owner(tx, ty) != local_id:
-                game.pending_actions[unit.uid] = intent
-                tile_id = f"tile_{int(tx)}_{int(ty)}"
-                game.request_ownership(tile_id)
-                return
-        elif kind == "attack":
+        if kind == "attack":
             _, target = intent
+            # Pour attaquer : on doit aussi posséder la cible (pour modifier ses HP)
             if getattr(target, "proprietaire_reseau", None) != local_id:
                 game.pending_actions[unit.uid] = intent
                 game.request_ownership(target.uid)
                 return
                 
-        # Si on possède tout, on assigne l'action immédiatement !
+        # Si on possède tout ce qu'il faut, on assigne l'action immédiatement !
         unit.intent = intent
 
 

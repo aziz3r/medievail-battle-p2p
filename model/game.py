@@ -59,7 +59,7 @@ class Game:
         self.pending_requests.add(entity_id)
         if self.ipc_client:
             # Envoi du message spécifique "req_own" avec le demandeur
-            self.ipc_client.send_message({"t": "req_own", "uid": entity_id, "req": self.local_player_id})
+            self.ipc_client.send({"t": "req_own", "uid": entity_id, "req": self.local_player_id})
 
     def add_unit(self, unit: Guerrier, team: str, row: int, col: int) -> None:
         unit.team = team
@@ -176,7 +176,8 @@ class Game:
                 sync_data = self.get_sync_state()
                 if sync_data:
                     # Envoi au daemon C
-                    self.ipc_client.send(sync_data)
+                    if sync_data["u"]:
+                        self.ipc_client.send(sync_data)
             except Exception as e:
                 # Robustesse
                 pass
@@ -417,7 +418,7 @@ class Game:
                         if self.map.get_owner(float(x), float(y)) == local_id:
                             self.map.set_owner(float(x), float(y), requester)
                             if self.ipc_client:
-                                self.ipc_client.send_message({
+                                self.ipc_client.send({
                                     "t": "own_grant", "uid": uid, "new_owner": requester,
                                     "state": {"x": float(x), "y": float(y)}
                                 })
@@ -426,7 +427,7 @@ class Game:
                         if target_unit and getattr(target_unit, "proprietaire_reseau", None) == local_id:
                             target_unit.proprietaire_reseau = requester
                             if self.ipc_client:
-                                self.ipc_client.send_message({
+                                self.ipc_client.send({
                                     "t": "own_grant", "uid": uid, "new_owner": requester,
                                     "state": {"x": target_unit.x, "y": target_unit.y, "hp": target_unit.hp}
                                 })
@@ -439,10 +440,22 @@ class Game:
                 state = data.get("state", {})
                 
                 if uid and new_owner:
-                    if uid.startswith("tile_"):
-                        _, x, y = uid.split("_")
+                    if uid.startswith("CELL_"):
+                        _, x, y = uid.split('_')
                         self.map.set_owner(float(x), float(y), new_owner)
                         print(f"[{local_id}] Propriété reçue pour la case {uid}.")
+                        
+                        # Validation de l'action en attente pour le déplacement
+                        for actor_uid, intent in list(self.pending_actions.items()):
+                            if intent[0] == "move_to":
+                                _, tx, ty = intent
+                                if f"CELL_{int(tx)}_{int(ty)}" == uid:
+                                    actor_unit = next((u for u in self.units if getattr(u, "uid", None) == actor_uid), None)
+                                    if actor_unit and getattr(actor_unit, "proprietaire_reseau", None) == local_id:
+                                        print(f"[{local_id}] Déplacement validé pour {actor_uid} vers {uid}.")
+                                        actor_unit.intent = intent
+                                    if actor_uid in self.pending_actions:
+                                        del self.pending_actions[actor_uid]
                     else:
                         target_unit = next((u for u in self.units if getattr(u, "uid", None) == uid), None)
                         if target_unit:
