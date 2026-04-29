@@ -3,6 +3,7 @@ Moteur de bataille - gère unités, équipes, progression du temps, actions des 
 """
 from __future__ import annotations
 import math
+import time
 from typing import Dict, List, Optional, Iterable, Any
 
 from .map import BattleMap
@@ -22,7 +23,8 @@ class Game:
         
         # --- File d'attente et Verrouillage Réseau (V2) ---
         self.pending_actions: Dict[str, tuple] = {}
-        self.pending_requests: set = set()
+        # Anti-deadlock : on stocke l'heure de la requête pour détecter les timeouts
+        self.pending_requests: Dict[str, float] = {}  # uid -> timestamp (time.time())
         
         # Initialisation de la Propriété Réseau sur la carte (50/50)
         mid_col = self.map.cols // 2
@@ -51,15 +53,32 @@ class Game:
         for team, controller in self.controllers.items():
             self.next_decision_time[team] = 0.0
 
+    def clean_expired_requests(self, timeout: float = 1.5) -> None:
+        """
+        Anti-Starvation : Supprime les requêtes de propriété expirées.
+        Si un paquet réseau se perd, l'unité reste bloquée éternellement.
+        Après 'timeout' secondes sans réponse, on libère l'unité pour une nouvelle tentative.
+        """
+        now = time.time()
+        # On trouve les requêtes dont le timestamp est trop vieux
+        expired = [uid for uid, ts in self.pending_requests.items() if now - ts > timeout]
+        for uid in expired:
+            print(f"[{self.local_player_id}] ⏰ Timeout: Requête annulée pour l'unité {uid}. Nouvelle tentative possible.")
+            del self.pending_requests[uid]
+            # Libérer aussi l'action en attente associée
+            if uid in self.pending_actions:
+                del self.pending_actions[uid]
+
     def request_ownership(self, entity_id: str) -> None:
         """Envoie une requête via IPC pour demander la propriété réseau d'une entité ou d'une case."""
         if entity_id in self.pending_requests:
-            return # Requête déjà envoyée, on patiente
+            return # Requête déjà envoyée, on patiente jusqu'au timeout
             
-        self.pending_requests.add(entity_id)
+        # On enregistre l'heure de la requête (pour le système de timeout)
+        self.pending_requests[entity_id] = time.time()
         if self.ipc_client:
             # Envoi du message spécifique "req_own" avec le demandeur
-            self.ipc_client.send_message({"t": "req_own", "uid": entity_id, "req": self.local_player_id})
+            self.ipc_client.send({"t": "req_own", "uid": entity_id, "req": self.local_player_id})
 
     def add_unit(self, unit: Guerrier, team: str, row: int, col: int) -> None:
         unit.team = team
@@ -67,6 +86,8 @@ class Game:
         if not getattr(unit, "uid", None):
             self.unit_counters[team] = self.unit_counters.get(team, 0) + 1
             unit.uid = f"{team}_{self.unit_counters[team]}"
+        # ✅ Propriété réseau initiale = l'équipe qui possède l'unité
+        unit.proprietaire_reseau = team
             
         self.units.append(unit)
         try:
@@ -125,11 +146,14 @@ class Game:
         if not self.running:
             return
 
+        # === ANTI-DEADLOCK : Nettoyage des requêtes expirées ===
+        # Si un paquet se perd, l'unité est libérée après 1.5s au lieu de rester bloquée éternellement.
+        if self.ipc_client is not None:
+            self.clean_expired_requests(timeout=1.5)
+
         # === DEBUT SYNCHRONISATION P2P (RECEPTION) ===
         if self.ipc_client is not None:
             try:
-                # Lecture stricte non-bloquante depuis le deamon C
-                # (On suppose que ipc_client.receive() ou une méthode similaire existe et retourne les data)
                 data = self.ipc_client.receive()
                 if data:
                     self.apply_sync_state(data, self.local_player_id)
@@ -176,7 +200,8 @@ class Game:
                 sync_data = self.get_sync_state()
                 if sync_data:
                     # Envoi au daemon C
-                    self.ipc_client.send(sync_data)
+                    if sync_data["u"]:
+                        self.ipc_client.send(sync_data)
             except Exception as e:
                 # Robustesse
                 pass
@@ -228,6 +253,10 @@ class Game:
             return
         if not hasattr(attacker, "attaquer"):
             return
+        # Règle V2 : on ne peut pas modifier les HP d'une unité qu'on ne possède pas
+        if self.ipc_client is not None:
+            if getattr(target, "proprietaire_reseau", None) != self.local_player_id:
+                return
 
         dist = self.map.distance(attacker, target)
 
@@ -267,6 +296,19 @@ class Game:
         if hp_before > 0.0 and hp_after <= 0.0:
             if att_team is not None and att_team != "?":
                 self.kills[att_team] = self.kills.get(att_team, 0) + 1
+            # 📡 Diffusion immédiate de la mort (sans attendre le tick de synchro)
+            if self.ipc_client is not None:
+                try:
+                    self.ipc_client.send({"t": "as", "u": {
+                        target.uid: {
+                            "tp": type(target).__name__,
+                            "x": round(target.x, 2),
+                            "y": round(target.y, 2),
+                            "h": 0.0
+                        }
+                    }})
+                except Exception:
+                    pass
 
         self.logs.append(
             f"{att_team}:{att_name} → {tgt_team}:{tgt_name} | "
@@ -326,6 +368,11 @@ class Game:
     def update_unit(self, u, dt):
         if not u.est_vivant():
             return
+
+        # Règle V2 : seul le propriétaire réseau exécute la physique d'une unité
+        if self.ipc_client is not None:
+            if getattr(u, "proprietaire_reseau", None) != self.local_player_id:
+                return
 
         if u.intent is None:
             return
@@ -417,7 +464,7 @@ class Game:
                         if self.map.get_owner(float(x), float(y)) == local_id:
                             self.map.set_owner(float(x), float(y), requester)
                             if self.ipc_client:
-                                self.ipc_client.send_message({
+                                self.ipc_client.send({
                                     "t": "own_grant", "uid": uid, "new_owner": requester,
                                     "state": {"x": float(x), "y": float(y)}
                                 })
@@ -426,7 +473,7 @@ class Game:
                         if target_unit and getattr(target_unit, "proprietaire_reseau", None) == local_id:
                             target_unit.proprietaire_reseau = requester
                             if self.ipc_client:
-                                self.ipc_client.send_message({
+                                self.ipc_client.send({
                                     "t": "own_grant", "uid": uid, "new_owner": requester,
                                     "state": {"x": target_unit.x, "y": target_unit.y, "hp": target_unit.hp}
                                 })
@@ -439,10 +486,22 @@ class Game:
                 state = data.get("state", {})
                 
                 if uid and new_owner:
-                    if uid.startswith("tile_"):
-                        _, x, y = uid.split("_")
+                    if uid.startswith("CELL_"):
+                        _, x, y = uid.split('_')
                         self.map.set_owner(float(x), float(y), new_owner)
                         print(f"[{local_id}] Propriété reçue pour la case {uid}.")
+                        
+                        # Validation de l'action en attente pour le déplacement
+                        for actor_uid, intent in list(self.pending_actions.items()):
+                            if intent[0] == "move_to":
+                                _, tx, ty = intent
+                                if f"CELL_{int(tx)}_{int(ty)}" == uid:
+                                    actor_unit = next((u for u in self.units if getattr(u, "uid", None) == actor_uid), None)
+                                    if actor_unit and getattr(actor_unit, "proprietaire_reseau", None) == local_id:
+                                        print(f"[{local_id}] Déplacement validé pour {actor_uid} vers {uid}.")
+                                        actor_unit.intent = intent
+                                    if actor_uid in self.pending_actions:
+                                        del self.pending_actions[actor_uid]
                     else:
                         target_unit = next((u for u in self.units if getattr(u, "uid", None) == uid), None)
                         if target_unit:
@@ -473,7 +532,7 @@ class Game:
                                             actor_unit.intent = intent
                                         del self.pending_actions[actor_uid]
                     
-                    self.pending_requests.discard(uid)
+                    self.pending_requests.pop(uid, None)
                 return
                 
             if t != "as":
@@ -491,9 +550,13 @@ class Game:
                     if getattr(target_unit, "proprietaire_reseau", None) != self.local_player_id:
                         if "h" in info:
                             new_hp = float(info["h"])
-                            if target_unit.hp <= 0 and new_hp > 0:
-                                target_unit.is_zombie = True
-                            target_unit.hp = new_hp
+                            # Règle V2 : un mort reste mort. On ignore les paquets périmés.
+                            if not (target_unit.hp <= 0 and new_hp > 0):
+                                target_unit.hp = new_hp
+
+                        # Synchronisation du cooldown pour déclencher l'animation d'attaque à distance
+                        if "cd" in info and hasattr(target_unit, "cooldown"):
+                            target_unit.cooldown = float(info["cd"])
                             
                         if "x" in info and "y" in info:
                             target_unit.x = max(0.0, min(float(info["x"]), float(self.map.cols - 1)))
@@ -534,12 +597,13 @@ class Game:
         local_units = {}
         for u in self.units:
             if getattr(u, "proprietaire_reseau", None) == self.local_player_id:
-                # Propriétaire : on envoie tout l'état (position + hp)
+                # Propriétaire : on envoie tout l'état (position + hp + cooldown pour l'animation)
                 local_units[u.uid] = {
                     "tp": type(u).__name__,
                     "x": round(u.x, 2),
                     "y": round(u.y, 2),
-                    "h": round(u.hp, 1)
+                    "h": round(u.hp, 1),
+                    "cd": round(getattr(u, "cooldown", 0), 2)  # Cooldown pour déclencher l'animation d'attaque
                 }
         
         if not local_units: return None

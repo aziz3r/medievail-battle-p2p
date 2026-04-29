@@ -18,28 +18,29 @@ class BaseController:
         
         # 1. Vérifier la propriété de l'unité actrice
         if getattr(unit, "proprietaire_reseau", None) != local_id:
+            # Option C — Réclamation Légitime :
+            # Si c'est notre propre unité (même équipe) mais que l'adversaire en a le jeton,
+            # on le réclame activement au lieu d'abandonner l'unité.
+            if getattr(unit, "team", None) == local_id:
+                if unit.uid not in game.pending_requests:
+                    print(f"[{local_id}] ♟️ Réclamation de notre unité {unit.uid} "
+                          f"(actuellement détenue par '{unit.proprietaire_reseau}'). Envoi req_own.")
             game.pending_actions[unit.uid] = intent
             game.request_ownership(unit.uid)
             return
             
-        # 2. Vérifier la propriété de la cible
+        # 2. Pour un déplacement : le propriétaire de l'unité peut toujours la déplacer librement
+        #    (pas besoin de propriété de case, c'est réservé à la construction)
         kind = intent[0]
-        if kind == "move_to":
-            _, tx, ty = intent
-            # Demande la propriété de la case
-            if game.map.get_owner(tx, ty) != local_id:
-                game.pending_actions[unit.uid] = intent
-                tile_id = f"tile_{int(tx)}_{int(ty)}"
-                game.request_ownership(tile_id)
-                return
-        elif kind == "attack":
+        if kind == "attack":
             _, target = intent
+            # Pour attaquer : on doit aussi posséder la cible (pour modifier ses HP)
             if getattr(target, "proprietaire_reseau", None) != local_id:
                 game.pending_actions[unit.uid] = intent
                 game.request_ownership(target.uid)
                 return
                 
-        # Si on possède tout, on assigne l'action immédiatement !
+        # Si on possède tout ce qu'il faut, on assigne l'action immédiatement !
         unit.intent = intent
 
 
