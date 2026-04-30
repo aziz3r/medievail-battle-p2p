@@ -64,7 +64,7 @@ sequenceDiagram
     else Ne possède pas la Propriété Réseau de X
         Note over IA: ⏳ L'IA est bloquée en attente<br/>de la réponse IPC<br/>(pending_actions["X"] = intent)
 
-        loop [Tant que la propriété réseau de X n'est pas obtenue]
+        loop [Tant que la propriété réseau de X n'est pas obtenue | timeout : 1.5s max]
             CL->>CD: req_own — Requête P2P : Transfert de Propriété de X
 
             alt [CAS A] Propriété disponible : X n'est pas verrouillé
