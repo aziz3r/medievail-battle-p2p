@@ -80,32 +80,31 @@ sequenceDiagram
 ---
 
 ## 🚀 Comment tester la V1 en local
-Afin de valider la conception "Best-Effort" (UDP sans garantie), vous pouvez simuler deux joueurs en concurrence sur un seul ordinateur. 
 
-Ouvrez 4 terminaux à la racine du projet :
+Le routeur réseau est compilé depuis `reseau.c`. `reseau.exe` est déjà compilé. Voici les **4 commandes**, une par terminal, dans l'ordre :
 
-**[Joueur 1 - Hôte]**
-1. Lancer le routeur de l'hôte (Terminal 1) :
-   ```bash
-   py p2p_node_mock.py 6000 127.0.0.1 6001 5000 5001 0
-   ```
-   *(Note : Si vous disposez de gcc, vous pouvez aussi compiler et utiliser `./network_poc/p2p_node.exe 6000 127.0.0.1 6001 5000 5001`)*
+> ⚠️ **Ordre obligatoire** : lancez les daemons C (T1 et T3) **avant** les jeux Python (T2 et T4).
 
-2. Lancer le jeu de l'hôte (Terminal 2) :
-   ```bash
-   py launch.py
-   ```
-   *(Choix 6 -> Sélectionner Zone 1 -> CRÉER)*
+**Terminal 1 — Daemon C Joueur A**
+```bash
+.\reseau.exe 6000 127.0.0.1 6001 5000 5001
+```
 
-**[Joueur 2 - Client]**
-3. Lancer le routeur du client (Terminal 3) :
-   ```bash
-   py p2p_node_mock.py 6001 127.0.0.1 6000 5002 5003 0
-   ```
-4. Lancer le jeu du client (Terminal 4) :
-   ```bash
-   py launch.py
-   ```
-   *(Choix 6 -> Sélectionner Zone 4 -> REJOINDRE)*
+**Terminal 2 — Jeu Joueur A**
+```bash
+py launch.py
+```
 
-Dès que la partie commence, testez de placer des unités de chaque côté : le système fonctionnera en concurrence totale. Puisqu'il s'agit d'un réseau pur UDP sans blocage (Best-Effort), des actions brutales et simultanées pourront causer d'éventuelles désynchronisations (fantômes, rubber-banding), validant ainsi que le protocole ne bloque pas l'exécution.
+**Terminal 3 — Daemon C Joueur B**
+```bash
+.\reseau.exe 6001 127.0.0.1 6000 5002 5003
+```
+
+**Terminal 4 — Jeu Joueur B**
+```bash
+py launch.py
+```
+
+> **Note :** Si les deux joueurs choisissent la même zone, le système résout automatiquement le conflit en réaffectant le client à la zone opposée (1↔4, 2↔3).
+
+Dès que la partie commence, le système fonctionne en concurrence totale (Best-Effort UDP). Des actions simultanées pourront causer des désynchronisations (fantômes, rubber-banding), validant que le protocole ne bloque pas l'exécution.
