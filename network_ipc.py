@@ -58,7 +58,6 @@ class IPCClient:
                 # Fernet.encrypt() chiffre en AES-128-CBC et signe avec HMAC-SHA256
                 payload = self.cipher.encrypt(payload)
                 
-            print(f"\n[SÉCURITÉ] Paquet chiffré prêt à être envoyé sur le réseau : {payload[:50]}...\n")
             self.sock_out.sendto(payload, (self.ip, self.port_in))
         except Exception as e:
             print(f"[IPC] Error sending data: {e}")
