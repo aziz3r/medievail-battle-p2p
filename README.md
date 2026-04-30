@@ -51,25 +51,25 @@ Le modèle garantit l'intégrité de la scène (personnages, objets, cases) :
 
 ```mermaid
 sequenceDiagram
-    participant IA as IA (Python)
+    participant IA as IA Python (Local)
     participant CL as Daemon C (Local)
     participant CD as Daemon C (Distant)
 
     Note over IA, CL: Intention d'agir sur l'Entité X
+
     IA->>CL: Demande d'action sur l'Entité X
-    
-    alt Possède la Propriété Réseau
-        CL-->>IA: Autorisation immédiate
-    else Ne possède pas la Propriété Réseau
-        CL->>CD: Requête de transfert de Propriété pour X
-        Note over CD: Résolution du consensus local/distant
-        CD-->>CL: Propriété transférée (Acquittement)
-        CL-->>IA: Autorisation accordée
-    end
-    
+
+    Note over CL: Aucune vérification de propriété.<br/>L'action est appliquée immédiatement<br/>sans attendre l'accord du pair distant.
+
+    CL-->>IA: Autorisation immédiate (accès direct)
+
     IA->>CL: Exécution & Application locale de l'action
-    Note over CL, CD: Diffusion non bloquante
-    CL-)CD: Broadcast Best-effort du nouvel état
+    Note over IA: L'IA modifie directement l'état<br/>(HP, position) sans négociation.
+
+    Note over CL, CD: Diffusion non bloquante — Best-Effort UDP<br/>Pas de garantie de livraison ni d'ordre.
+    CL-)CD: Broadcast du nouvel état de X (UDP, fire-and-forget)
+
+    Note over CD: Le pair distant met à jour sa copie locale.<br/>⚠️ Si deux IA agissent sur X en même temps,<br/>les deux broadcasts se croisent → désynchronisation<br/>(fantômes, rubber-banding, double-dégâts).
 ```
 
 ## 🛠️ Contexte Technique
