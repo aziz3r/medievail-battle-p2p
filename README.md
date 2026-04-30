@@ -128,31 +128,40 @@ Dès que la partie commence, testez de placer des unités de chaque côté : le 
 
 ---
 
-## 🚀 Comment tester la Version 2 (P2P Synchronisé)
+## 🚀 Test Version 2 — P2P Synchronisé (sans GCC)
 
-Ouvrez **4 terminaux** à la racine du projet et lancez les commandes dans cet ordre :
+Voici les **4 commandes**, une par terminal, dans l'ordre :
 
-**Terminal 1 — Routeur réseau Joueur 1 (Hôte)**
+> ⚠️ **Ordre obligatoire** : lancez les routeurs (T1 et T3) **avant** les jeux (T2 et T4).
+
+**Terminal 1 — Routeur P2P Joueur A**
 ```bash
 py p2p_node_mock.py 6000 127.0.0.1 6001 5000 5001
 ```
 
-**Terminal 2 — Jeu Joueur 1**
+**Terminal 2 — Jeu Joueur A**
 ```bash
 py launch.py
 ```
-*(Dans le menu : Multijoueur P2P → Choisir une Zone → **CRÉER**)*
 
-**Terminal 3 — Routeur réseau Joueur 2 (Client)**
+**Terminal 3 — Routeur P2P Joueur B**
 ```bash
 py p2p_node_mock.py 6001 127.0.0.1 6000 5002 5003
 ```
 
-**Terminal 4 — Jeu Joueur 2**
+**Terminal 4 — Jeu Joueur B**
 ```bash
 py launch.py
 ```
-*(Dans le menu : Multijoueur P2P → Choisir une Zone → **REJOINDRE**)*
 
-> **Note :** Si les deux joueurs choisissent la même zone, le système de collision la résout automatiquement en déplaçant le client à la zone opposée.
+### ✅ Messages attendus dans les terminaux (preuve que le protocole fonctionne)
 
+| Message | Signification |
+|---|---|
+| `[A] Action validée pour A_X sur B_Y` | Propriété accordée, attaque exécutée |
+| `[A] Action annulée : cible trop loin` | Vérification tardive — cible déplacée pendant la négociation |
+| `[B] ♟️ Réclamation de notre unité B_X` | Réclamation légitime — B reprend son unité après l'attaque de A |
+| `[B] Propriété reçue HP=...` | Synchronisation d'état parfaite entre les deux instances |
+| `🔒 Unité X verrouillée. Rejet envoyé` | Duel Simultané — verrou d'attaque actif (CAS B du diagramme) |
+| `⏳ Rejet reçu pour X. Retry dans 0.5s` | Boucle loop active — retry après cooldown |
+| `🔓 Verrou levé sur X` | Auto-résolution — requête différée traitée avec HP finaux |
