@@ -705,7 +705,29 @@ class MainMenu:
             print("[ERR] Timeout synchro lobby")
             return
 
-        # --- 2. Initialisation du Jeu ---
+        # --- 2. Résolution des conflits de Zone ---
+        # Si les deux joueurs ont choisi la même zone, deux armées spawneraient au même endroit.
+        # Règle : l'HÔTE garde toujours sa zone. Le CLIENT est réaffecté à la zone opposée.
+        # Zones opposées : 1 ↔ 4, 2 ↔ 3 (coins diagonalement opposés de la carte).
+        ZONE_OPPOSEE = {1: 4, 2: 3, 3: 2, 4: 1}
+        if my_choice["zone"] == remote_choice["zone"]:
+            if not is_host:
+                # Le client prend la zone opposée automatiquement
+                zone_initiale = my_choice["zone"]
+                my_choice["zone"] = ZONE_OPPOSEE[zone_initiale]
+                print(f"[NET] Conflit de zone détecté ! Zone {zone_initiale} déjà prise par l'hôte.")
+                print(f"[NET] Réaffectation automatique → Zone {my_choice['zone']}")
+                # Affichage visuel de la réaffectation
+                self.screen.fill(BG_COLOR)
+                msg = self.font_small.render(
+                    f"Zone {zone_initiale} déjà prise ! → Réaffecté à la Zone {my_choice['zone']}",
+                    True, ACCENT_COLOR
+                )
+                self.screen.blit(msg, (self.w//2 - 250, self.h//2))
+                pygame.display.flip()
+                pygame.time.wait(2000)  # 2s pour que le joueur lise le message
+
+        # --- 3. Initialisation du Jeu ---
         from model.map import BattleMap
         from model.game import Game
         from model.army_compositions import spawn_army_in_quadrant
