@@ -128,15 +128,24 @@ Dès que la partie commence, testez de placer des unités de chaque côté : le 
 
 ---
 
-## 🚀 Test Version 2 — P2P Synchronisé (sans GCC)
+## 🚀 Test Version 2 — P2P Synchronisé (Daemon C natif)
 
-Voici les **4 commandes**, une par terminal, dans l'ordre :
+Le routeur réseau est implémenté en **C pur** (`reseau.c`). Compilez-le une fois avant le test :
 
-> ⚠️ **Ordre obligatoire** : lancez les routeurs (T1 et T3) **avant** les jeux (T2 et T4).
-
-**Terminal 1 — Routeur P2P Joueur A**
 ```bash
-py p2p_node_mock.py 6000 127.0.0.1 6001 5000 5001
+compile.bat
+```
+*(Cela génère `reseau.exe` — ne nécessite qu'une seule compilation)*
+
+---
+
+Ouvrez ensuite **4 terminaux** à la racine du projet et lancez les commandes dans cet ordre :
+
+> ⚠️ **Ordre obligatoire** : lancez les daemons C (T1 et T3) **avant** les jeux Python (T2 et T4).
+
+**Terminal 1 — Daemon C Joueur A**
+```bash
+.\reseau.exe 6000 127.0.0.1 6001 5000 5001
 ```
 
 **Terminal 2 — Jeu Joueur A**
@@ -144,9 +153,9 @@ py p2p_node_mock.py 6000 127.0.0.1 6001 5000 5001
 py launch.py
 ```
 
-**Terminal 3 — Routeur P2P Joueur B**
+**Terminal 3 — Daemon C Joueur B**
 ```bash
-py p2p_node_mock.py 6001 127.0.0.1 6000 5002 5003
+.\reseau.exe 6001 127.0.0.1 6000 5002 5003
 ```
 
 **Terminal 4 — Jeu Joueur B**
@@ -158,10 +167,11 @@ py launch.py
 
 | Message | Signification |
 |---|---|
+| `[IPC -> NET] Envoi vers 127.0.0.1:600x` | Le daemon C route un paquet du jeu vers l'adversaire |
+| `[NET -> IPC] Recu de 127.0.0.1:600x` | Le daemon C reçoit un paquet réseau et le transmet au jeu local |
 | `[A] Action validée pour A_X sur B_Y` | Propriété accordée, attaque exécutée |
 | `[A] Action annulée : cible trop loin` | Vérification tardive — cible déplacée pendant la négociation |
 | `[B] ♟️ Réclamation de notre unité B_X` | Réclamation légitime — B reprend son unité après l'attaque de A |
 | `[B] Propriété reçue HP=...` | Synchronisation d'état parfaite entre les deux instances |
 | `🔒 Unité X verrouillée. Rejet envoyé` | Duel Simultané — verrou d'attaque actif (CAS B du diagramme) |
 | `⏳ Rejet reçu pour X. Retry dans 0.5s` | Boucle loop active — retry après cooldown |
-| `🔓 Verrou levé sur X` | Auto-résolution — requête différée traitée avec HP finaux |
