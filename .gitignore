@@ -29,3 +29,17 @@ env/
 .idea/
 *.suo
 *.user
+
+# --- Ajouts (miroir portfolio) ---
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+*.so
+.DS_Store
+.vscode/
+# Fichiers d'etat generes a l'execution
+battle_state.txt
+battle_attacks.txt
+battle_summary.txt
