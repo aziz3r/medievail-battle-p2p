@@ -125,3 +125,8 @@ Ouvrez 4 terminaux :
 4. Lancer le jeu applicatif (Terminal 4) : `python launch.py` *(Rejoindre la partie)*
 
 *Les deux instances sont maintenant parfaitement synchronisées grâce au protocole de propriété réseau géré par les processus C !*
+
+## Rapport et démonstration
+
+- [Rapport technique](rapport/rapport.pdf) (8 pages) : architecture, protocole, expérience à deux joueurs, écarts entre la documentation et le code.
+- [Démonstration](demo/README.md) : vidéo côte à côte, captures d'écran et script de capture.

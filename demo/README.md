@@ -21,6 +21,8 @@ Sur cette exécution, les daemons ont acheminé **662 paquets** (hôte → clien
 - **Les deux vues finissent par diverger.** À la fin de l'exécution, l'écran du client affiche « Victoire équipe B » (équipe A : 0, équipe B : 112), alors que l'hôte affiche encore équipe A : 1 et équipe B : 108 et n'a pas détecté de fin de partie. Des unités teintées en vert (drapeau `is_zombie`, unités tuées localement puis « ressuscitées » par un état réseau reçu) sont visibles pendant la mêlée.
 - Les captures finales (`08_fin_de_bataille.png`) ne sont pas prises au même instant : le client a terminé sa bataille plus tôt que l'hôte (77 s contre 117 s enregistrées).
 
+L'analyse détaillée (mécanisme du drapeau `is_zombie`, écarts entre le README et le code) est dans le [rapport technique](../rapport/rapport.pdf).
+
 Ces observations proviennent d'une seule exécution. Le cadencement du script de capture (rendu sans fenêtre, images traitées à des vitesses différentes selon le joueur) peut aussi influencer la synchronisation ; elles ne suffisent donc pas à établir la cause exacte.
 
 ## Note macOS : taille des paquets UDP
